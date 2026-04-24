@@ -5,6 +5,7 @@ using Iot.Client.Maui.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PeerJsonSockets;
+using System.Diagnostics.Metrics;
 
 namespace Iot.Client.Maui
 {
@@ -15,7 +16,8 @@ namespace Iot.Client.Maui
 			var builder = MauiApp.CreateBuilder();
 			MainPageLogSink mainPageLogSink = new();
 			string logFilePath = Path.Combine(
-				FileSystem.Current.AppDataDirectory,
+				@"C:\Src\Iot\Iot.Client.Maui",
+				//FileSystem.Current.AppDataDirectory,
 				"logs",
 				$"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
 
@@ -26,6 +28,7 @@ namespace Iot.Client.Maui
 				{
 					fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 					fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+					//fonts.AddFont("Courier New.ttf", "CourierNew"); 
 				});
 
 			builder.Services.AddSingleton(mainPageLogSink);

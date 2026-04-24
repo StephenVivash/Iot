@@ -33,6 +33,21 @@ internal sealed class MainPageLoggerProvider : ILoggerProvider
 			return NullScope.Instance;
 		}
 
+
+		public string LogLevelString(LogLevel logLevel)
+		{
+			return logLevel switch
+			{
+				LogLevel.Trace => "trac",
+				LogLevel.Debug => "debg",
+				LogLevel.Information => "info",
+				LogLevel.Warning => "warn",
+				LogLevel.Error => "fail",
+				LogLevel.Critical => "crit",
+				_ => logLevel.ToString().ToLowerInvariant()
+			};
+		}
+
 		public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
 
 		public void Log<TState>(
@@ -53,7 +68,7 @@ internal sealed class MainPageLoggerProvider : ILoggerProvider
 				return;
 			}
 
-			_sink.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{logLevel}] {message}");
+			_sink.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{LogLevelString(logLevel)}] {message}");
 
 			if (exception is not null)
 			{
