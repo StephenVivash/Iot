@@ -40,9 +40,15 @@ internal static class Program
 		List<Task> tasks = [];
 		if (startupMode.RunServer)
 		{
+			List<IPeerServerLoopTask> serverLoopTasks =
+			[
+				new ConsoleServerHeartbeatTask(logger)
+			];
+
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
 				options, connectionRegistry, connectionService,
-				logger);
+				logger,
+				serverLoopTasks);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));

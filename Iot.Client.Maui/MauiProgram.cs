@@ -5,7 +5,6 @@ using Iot.Client.Maui.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PeerJsonSockets;
-using System.Diagnostics.Metrics;
 
 namespace Iot.Client.Maui
 {
@@ -41,7 +40,9 @@ namespace Iot.Client.Maui
 					sp.GetRequiredService<PeerRuntimeOptions>(),
 					sp.GetRequiredService<PeerConnectionRegistry>(),
 					sp.GetRequiredService<PeerConnectionService>(),
-					sp.GetRequiredService<ILoggerFactory>().CreateLogger("Iot.Client.Maui")));
+					sp.GetRequiredService<ILoggerFactory>().CreateLogger("Iot.Client.Maui"),
+					sp.GetServices<IPeerClientLoopTask>()));
+			builder.Services.AddSingleton<IPeerClientLoopTask, MauiClientConnectionLogTask>();
 			builder.Services.AddSingleton<IotClientLoopService>();
 			builder.Services.AddSingleton<AppShell>();
 			builder.Services.AddSingleton<MainPage>();

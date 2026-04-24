@@ -9,6 +9,7 @@ public sealed class PeerServerService
 	private readonly int _listenPort;
 	private readonly PeerConnectionService _connectionService;
 	private readonly PeerConnectionRegistry _connectionRegistry;
+	private readonly IReadOnlyList<IPeerServerLoopTask> _loopTasks;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
 
@@ -18,7 +19,8 @@ public sealed class PeerServerService
 		PeerRuntimeOptions options,
 		PeerConnectionRegistry connectionRegistry,
 		PeerConnectionService connectionService,
-		ILogger logger)
+		ILogger logger,
+		IEnumerable<IPeerServerLoopTask>? loopTasks = null)
 	{
 		_listenAddress = listenAddress;
 		_listenPort = listenPort;
@@ -26,6 +28,7 @@ public sealed class PeerServerService
 		_connectionRegistry = connectionRegistry;
 		_connectionService = connectionService;
 		_logger = logger;
+		_loopTasks = loopTasks?.ToArray() ?? [];
 	}
 
 	public async Task RunAsync(CancellationToken cancellationToken)
@@ -138,8 +141,8 @@ public sealed class PeerServerService
 
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)
 	{
-		LoopTaskScheduler<ServerLoopContext> scheduler = CreateServerLoopScheduler();
-		ServerLoopContext context = new();
+		LoopTaskScheduler<PeerServerLoopContext> scheduler = CreateServerLoopScheduler();
+		PeerServerLoopContext context = new(_connectionRegistry);
 
 		try
 		{
@@ -154,29 +157,31 @@ public sealed class PeerServerService
 		}
 	}
 
-	private LoopTaskScheduler<ServerLoopContext> CreateServerLoopScheduler()
+	private LoopTaskScheduler<PeerServerLoopContext> CreateServerLoopScheduler()
 	{
-		LoopTaskScheduler<ServerLoopContext> scheduler = new(_logger);
+		LoopTaskScheduler<PeerServerLoopContext> scheduler = new(_logger);
 
 		scheduler.Register("server.connection-summary", _options.SummaryInterval, RunServerConnectionSummaryAsync);
 		scheduler.Register("server.maintenance", _options.MaintenanceInterval, RunServerMaintenanceAsync);
+		foreach (IPeerServerLoopTask loopTask in _loopTasks)
+		{
+			scheduler.Register(loopTask.Name, loopTask.Interval, loopTask.ExecuteAsync);
+		}
 
 		return scheduler;
 	}
 
-	private Task RunServerConnectionSummaryAsync(ServerLoopContext context, CancellationToken cancellationToken)
+	private Task RunServerConnectionSummaryAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
 		_logger.LogInformation(
 			"Server task connection summary. Connected clients: {ConnectedClientCount}.",
-			_connectionRegistry.CountByRole(PeerRole.Server));
+			context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
 
-	private Task RunServerMaintenanceAsync(ServerLoopContext context, CancellationToken cancellationToken)
+	private Task RunServerMaintenanceAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogDebug("Server task maintenance. Connected clients: {ConnectedClientCount}.", _connectionRegistry.CountByRole(PeerRole.Server));
+		_logger.LogDebug("Server task maintenance. Connected clients: {ConnectedClientCount}.", context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
-
-	private sealed class ServerLoopContext;
 }

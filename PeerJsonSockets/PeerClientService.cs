@@ -7,6 +7,7 @@ public sealed class PeerClientService
 {
 	private readonly PeerConnectionService _connectionService;
 	private readonly PeerConnectionRegistry _connectionRegistry;
+	private readonly IReadOnlyList<IPeerClientLoopTask> _loopTasks;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
 
@@ -14,12 +15,14 @@ public sealed class PeerClientService
 		PeerRuntimeOptions options,
 		PeerConnectionRegistry connectionRegistry,
 		PeerConnectionService connectionService,
-		ILogger logger)
+		ILogger logger,
+		IEnumerable<IPeerClientLoopTask>? loopTasks = null)
 	{
 		_options = options;
 		_connectionRegistry = connectionRegistry;
 		_connectionService = connectionService;
 		_logger = logger;
+		_loopTasks = loopTasks?.ToArray() ?? [];
 	}
 
 	public async Task RunAsync(PeerAddress peerAddress, CancellationToken cancellationToken)
@@ -175,8 +178,8 @@ public sealed class PeerClientService
 
 	private async Task RunClientLoopAsync(PeerConnection connection)
 	{
-		LoopTaskScheduler<ClientLoopContext> scheduler = CreateClientLoopScheduler();
-		ClientLoopContext context = new(connection);
+		LoopTaskScheduler<PeerClientLoopContext> scheduler = CreateClientLoopScheduler();
+		PeerClientLoopContext context = new(connection);
 
 		try
 		{
@@ -198,17 +201,21 @@ public sealed class PeerClientService
 		}
 	}
 
-	private LoopTaskScheduler<ClientLoopContext> CreateClientLoopScheduler()
+	private LoopTaskScheduler<PeerClientLoopContext> CreateClientLoopScheduler()
 	{
-		LoopTaskScheduler<ClientLoopContext> scheduler = new(_logger);
+		LoopTaskScheduler<PeerClientLoopContext> scheduler = new(_logger);
 
 		scheduler.Register("client.poll", _options.PollInterval, RunClientPollAsync);
 		scheduler.Register("client.summary", _options.MaintenanceInterval, RunClientSummaryAsync);
+		foreach (IPeerClientLoopTask loopTask in _loopTasks)
+		{
+			scheduler.Register(loopTask.Name, loopTask.Interval, loopTask.ExecuteAsync);
+		}
 
 		return scheduler;
 	}
 
-	private async Task RunClientPollAsync(ClientLoopContext context, CancellationToken cancellationToken)
+	private async Task RunClientPollAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
 		PeerConnection connection = context.Connection;
 
@@ -216,14 +223,14 @@ public sealed class PeerClientService
 		context.SentPollCount++;
 	}
 
-	private Task RunClientSummaryAsync(ClientLoopContext context, CancellationToken cancellationToken)
+	private Task RunClientSummaryAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
 		_logger.LogInformation(
 			"Client summary for {RemotePeer}. Sent polls: {SentPollCount}. Processed messages: {ProcessedMessageCount}. Queued messages: {QueuedMessageCount}.",
-			context.Connection.RemoteDisplayName,
+			context.RemoteDisplayName,
 			context.SentPollCount,
 			context.ProcessedMessageCount,
-			context.Connection.IncomingMessages.Count);
+			context.QueuedMessageCount);
 		return Task.CompletedTask;
 	}
 
@@ -254,19 +261,5 @@ public sealed class PeerClientService
 		}
 
 		return Task.CompletedTask;
-	}
-
-	private sealed class ClientLoopContext
-	{
-		public ClientLoopContext(PeerConnection connection)
-		{
-			Connection = connection;
-		}
-
-		public PeerConnection Connection { get; }
-
-		public int SentPollCount { get; set; }
-
-		public int ProcessedMessageCount { get; set; }
 	}
 }
