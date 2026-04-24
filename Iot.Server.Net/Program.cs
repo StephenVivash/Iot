@@ -1,8 +1,11 @@
-using System.Net;
+using Iot.Data;
+using Iot.Server.Net;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PeerJsonSockets;
-using Iot.Server.Net;
+using System.Data;
+using System.Net;
 
 internal static class Program
 {
@@ -31,6 +34,8 @@ internal static class Program
 			eventArgs.Cancel = true;
 			shutdown.Cancel();
 		};
+
+		DataTest();
 
 		PeerRuntimeOptions options = new(Environment.MachineName);
 		PeerConnectionRegistry connectionRegistry = new();
@@ -126,5 +131,51 @@ internal static class Program
 			});
 			builder.AddProvider(new TimestampedFileLoggerProvider(logFilePath));
 		});
+	}
+
+	private static void DataTest()
+	{
+		using var dbContext = IotDataStore.CreateMigratedDbContext();
+
+		var devices = dbContext.Devices
+			.AsNoTracking()
+			.Include(device => device.Points)
+			.OrderBy(device => device.Id)
+			.ToList();
+		var groups = dbContext.Groups
+			.AsNoTracking()
+			.Include(group => group.GroupPoints)
+			.ThenInclude(groupPoint => groupPoint.Point)
+			.OrderBy(group => group.Id)
+			.ToList();
+
+		Console.WriteLine($"Database path: {DatabasePaths.GetDatabasePath()}");
+		Console.WriteLine($"Devices: {devices.Count}");
+		Console.WriteLine($"Points: {dbContext.Points.Count()}");
+		Console.WriteLine($"Groups: {groups.Count}");
+		Console.WriteLine($"GroupPoints: {dbContext.GroupPoints.Count()}");
+		Console.WriteLine();
+
+		foreach (var device in devices)
+		{
+			Console.WriteLine($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
+
+			foreach (var point in device.Points.OrderBy(point => point.Id))
+			{
+				Console.WriteLine($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
+			}
+		}
+
+		Console.WriteLine();
+
+		foreach (var group in groups)
+		{
+			Console.WriteLine($"Group #{group.Id} | {group.Name}");
+
+			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
+			{
+				Console.WriteLine($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
+			}
+		}
 	}
 }

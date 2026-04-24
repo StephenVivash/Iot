@@ -1,4 +1,6 @@
 using Iot.Client.Maui.Logging;
+using Iot.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iot.Client.Maui.Pages;
 
@@ -16,6 +18,7 @@ public partial class MainPage : ContentPage
 		_logSink = logSink;
 		edtOutput.Text = _logSink.GetText();
 		_logSink.LineAppended += OnLogLineAppended;
+		DataTest();
 	}
 
 
@@ -86,4 +89,52 @@ public partial class MainPage : ContentPage
 	{
 		// Handle selection change.
 	}
+
+	private void DataTest()
+	{
+		using var dbContext = IotDataStore.CreateMigratedDbContext();
+
+		var devices = dbContext.Devices
+			.AsNoTracking()
+			.Include(device => device.Points)
+			.OrderBy(device => device.Id)
+			.ToList();
+		var groups = dbContext.Groups
+			.AsNoTracking()
+			.Include(group => group.GroupPoints)
+			.ThenInclude(groupPoint => groupPoint.Point)
+			.OrderBy(group => group.Id)
+			.ToList();
+
+		OnLogLineAppended($"Database path: {DatabasePaths.GetDatabasePath()}");
+		OnLogLineAppended($"Devices: {devices.Count}");
+		OnLogLineAppended($"Points: {dbContext.Points.Count()}");
+		OnLogLineAppended($"Groups: {groups.Count}");
+		OnLogLineAppended($"GroupPoints: {dbContext.GroupPoints.Count()}");
+
+		foreach (var device in devices)
+		{
+			OnLogLineAppended($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
+
+			foreach (var point in device.Points.OrderBy(point => point.Id))
+			{
+				OnLogLineAppended($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
+			}
+		}
+
+		foreach (var group in groups)
+		{
+			OnLogLineAppended($"Group #{group.Id} | {group.Name}");
+
+			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
+			{
+				OnLogLineAppended($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
+			}
+		}
+	}
+
+
+
+
+
 }

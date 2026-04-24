@@ -2,6 +2,8 @@
   <Project Path="Iot.Client.Maui/Iot.Client.Maui.csproj" Id="5790d59e-c7ec-4e00-8f97-54d617017f04">
     <Deploy Solution="Debug|*" />
   </Project>
+  <Project Path="Iot.Data.Test/Iot.Data.Test.csproj" />
+  <Project Path="Iot.Data/Iot.Data.csproj" />
   <Project Path="Iot.Server.Net/Iot.Server.Net.csproj" />
   <Project Path="PeerJsonSockets/PeerJsonSockets.csproj" />
 </Solution>
