@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Iot.Device.Bindings" Version="4.2.0" />
+    <PackageReference Include="System.Device.Gpio" Version="4.2.0" />
     <ProjectReference Include="..\Iot.Data\Iot.Data.csproj" />
     <ProjectReference Include="..\PeerJsonSockets\PeerJsonSockets.csproj" />
   </ItemGroup>

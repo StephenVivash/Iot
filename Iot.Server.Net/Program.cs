@@ -1,11 +1,30 @@
-using Iot.Data;
-using Iot.Server.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using PeerJsonSockets;
+using System.Collections;
 using System.Data;
+
+using System.Device.Gpio.Drivers;
+using System.Device.I2c;
+using System.Device.Pwm;
+using System.Device.Spi;
 using System.Net;
+
+using Iot.Device.Bmp180;
+using Iot.Device.Bmxx80;
+//using Iot.Device.Adc;
+//using Iot.Device.Tm1637;
+//using Iot.Device.CharacterLcd;
+using Iot.Device.Bmxx80.PowerMode;
+//using Iot.Device.Pcx857x;
+//using Iot.Device.FtCommon;
+using Iot.Device.Tm16xx;
+using System.Device.Gpio;
+//using System.Device.Adc;
+
+using Iot.Data;
+using Iot.Server.Net;
+using PeerJsonSockets;
 
 internal static class Program
 {
@@ -35,6 +54,7 @@ internal static class Program
 			shutdown.Cancel();
 		};
 
+		GpioTest();
 		DataTest();
 
 		PeerRuntimeOptions options = new(Environment.MachineName);
@@ -119,7 +139,8 @@ internal static class Program
 
 		string logDirectory = configuration["FileLogging:Directory"] ?? "logs";
 		string logFileName = $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log";
-		string logFilePath = Path.Combine(AppContext.BaseDirectory, logDirectory, logFileName);
+		//string logFilePath = Path.Combine(AppContext.BaseDirectory, logDirectory, logFileName);
+		string logFilePath = Path.Combine(@"C:\Src\Iot\Iot.Server.Net", logDirectory, logFileName);
 
 		return LoggerFactory.Create(builder =>
 		{
@@ -133,8 +154,23 @@ internal static class Program
 		});
 	}
 
+	private static void GpioTest()
+	{
+		//GpioController gpioController = new(); // PinNumberingScheme.Logical
+		//gpioController.OpenPin(10, PinMode.Input);
+
+		Tm1637? tm1637 = null;
+		//Bmp280? bmp280 = null;
+		PwmChannel? pwmPin = null;
+
+		ArrayList adcChannels = new();
+		ArrayList bmp280s = new();
+		ArrayList pwmPins = new();
+	}
+
 	private static void DataTest()
 	{
+		//String ds = "Data Source=/home/pi/iot/IotData.db";
 		using var dbContext = IotDataStore.CreateMigratedDbContext();
 
 		var devices = dbContext.Devices
