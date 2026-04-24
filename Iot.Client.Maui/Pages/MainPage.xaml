@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+    x:Class="Iot.Client.Maui.Pages.MainPage">
+
+    <toolkit:DockLayout
+        x:Name="layDock"
+        ShouldExpandLastChild="true"
+        >
+
+    <!--views:MenuView
+        x:Name="horMenu"
+        toolkit:DockLayout.DockPosition="Top"
+		/>
+
+    <views:MenuView
+        x:Name="verMenu"
+        toolkit:DockLayout.DockPosition="{x:Static views:MenuView.VerticalDockPosition}"
+        /-->
+
+    <Border
+        Stroke="#d0d7de"
+        StrokeThickness="1"
+        toolkit:DockLayout.DockPosition="Left"
+        WidthRequest="300"
+        Padding="0">
+        <CollectionView 
+			x:Name="colWorkspace"
+            SelectionMode="Single"
+            SelectionChanged="OnMainPageSelectionChanged">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="2,2">
+                        <Label Text="{Binding Name}"
+                            Margin="{Binding Indent}"
+                            LineBreakMode="NoWrap" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Border>
+
+    <Border
+        Grid.Column="1"
+        Stroke="#d0d7de"
+        toolkit:DockLayout.DockPosition="Bottom"
+        HeightRequest="200"
+        StrokeThickness="1"
+        Padding="0">
+        <ScrollView
+            x:Name="scrOutput"
+            Orientation="Vertical">
+            <Editor 
+			    x:Name="edtOutput"
+                IsReadOnly="True"
+                AutoSize="TextChanges"
+                FontFamily="Courier New"
+			    FontSize="16"
+                Placeholder="Command output will appear here." />
+        </ScrollView>
+    </Border>
+
+    <Border
+        Stroke="#d0d7de"
+        StrokeThickness="1"
+        Padding="0">
+        <Editor 
+			x:Name="edtSource"
+            IsReadOnly="False"
+            AutoSize="TextChanges"
+            FontFamily="Courier New"
+			FontSize="16"
+            IsSpellCheckEnabled="False"
+            IsTextPredictionEnabled="False"
+            Placeholder="Source code will appear here." />
+    </Border>
+
+    </toolkit:DockLayout>
+</ContentPage>
