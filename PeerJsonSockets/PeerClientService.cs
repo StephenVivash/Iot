@@ -257,8 +257,17 @@ public sealed class PeerClientService
 
 		if (message.Type == PeerMessages.PointStatusType)
 		{
-			//PointStatus ps = message.Payload.Deserialize<PointStatus>()!;
-			//_logger.LogDebug("Client processed point status from {RemotePeer}; point {id} {status}.", connection.RemoteDisplayName, ps.Id, ps.Status);
+			PointStatus? pointStatus = JsonSocketPeer.ReadPayload<PointStatus>(message);
+			if (pointStatus is null)
+			{
+				_logger.LogWarning("Client received invalid point status from {RemotePeer}.",
+					connection.RemoteDisplayName);
+				return Task.CompletedTask;
+			}
+
+			_logger.LogInformation("Client processed point status from {RemotePeer}. Point {PointId}: {Status}.",
+				connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
+			return Task.CompletedTask;
 		}
 
 		if (message.Type == PeerMessages.PollType)
