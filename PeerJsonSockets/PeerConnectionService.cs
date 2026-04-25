@@ -39,8 +39,12 @@ public sealed class PeerConnectionService
 			RememberPeerName(peer, peerName);
 		}
 
-		_logger.LogInformation("{PeerRole} received {MessageType} from {RemotePeer}",
-			role, message.Type, GetRemoteDisplayName(peer));
+		_logger.LogDebug(
+			"{PeerRole} received {MessageType} from {RemotePeer}. Payload: {Payload}",
+			role,
+			message.Type,
+			GetRemoteDisplayName(peer),
+			message.Payload.GetRawText());
 
 		return message;
 	}
@@ -79,8 +83,12 @@ public sealed class PeerConnectionService
 		CancellationToken cancellationToken)
 	{
 		await peer.SendAsync(messageType, payload, cancellationToken);
-		_logger.LogInformation("{PeerRole} sent {MessageType} to {RemotePeer}",
-			role, messageType, GetRemoteDisplayName(peer));
+		_logger.LogDebug(
+			"{PeerRole} sent {MessageType} to {RemotePeer}. Payload: {Payload}",
+			role,
+			messageType,
+			GetRemoteDisplayName(peer),
+			JsonSerializer.Serialize(payload, JsonSocketPeer.SerializerOptions));
 	}
 
 	internal string GetRemoteDisplayName(PeerConnection connection) => connection.RemoteDisplayName;

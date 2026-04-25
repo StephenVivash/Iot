@@ -14,18 +14,14 @@ public sealed class MauiClientConnectionLogTask : IPeerClientLoopTask
 		_logger = logger;
 	}
 
-	public string Name => "maui.client.connection-log";
+	public string Name => "client.connection-log"; // maui.
 
 	public TimeSpan Interval => TimeSpan.FromSeconds(30);
 
 	public Task ExecuteAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation(
-			"MAUI client task observed {RemotePeer}. Sent polls: {SentPollCount}. Processed messages: {ProcessedMessageCount}. Queued messages: {QueuedMessageCount}.",
-			context.RemoteDisplayName,
-			context.SentPollCount,
-			context.ProcessedMessageCount,
-			context.QueuedMessageCount);
+		_logger.LogInformation("Client task observed {RemotePeer}. Sent polls: {SentPollCount}. Processed messages: {ProcessedMessageCount}. Queued messages: {QueuedMessageCount}.",
+			context.RemoteDisplayName, context.SentPollCount, context.ProcessedMessageCount, context.QueuedMessageCount);
 		return Task.CompletedTask;
 	}
 }
