@@ -12,6 +12,8 @@ public sealed record PollAck(string PeerName, string PollId, DateTimeOffset Rece
 
 public sealed record PeerStatus(string PeerName, string State, int ActiveConnections);
 
+public sealed record PointStatus(int Id, string Status);
+
 public static class HandshakeMessages
 {
 	public const string HandshakeType = "handshake";
@@ -19,9 +21,10 @@ public static class HandshakeMessages
 	public const string PollType = "poll";
 	public const string PollAckType = "poll.ack";
 	public const string StatusType = "peer.status";
+	public const string PointStatusType = "point.status";
 
 	public static Handshake CreateHello(string peerName) =>
-		new(peerName, "1.0", [HandshakeType, AckType, StatusType, PollType, PollAckType]);
+		new(peerName, "1.0", [HandshakeType, AckType, PollType, PollAckType, StatusType, PointStatusType]);
 
 	public static HandshakeAck CreateAck(string peerName) =>
 		new(peerName, Accepted: true, Message: "Handshake accepted.");
@@ -35,9 +38,6 @@ public static class HandshakeMessages
 	public static PeerStatus CreateStatus(string peerName, int activeConnections) =>
 		new(peerName, "ready", activeConnections);
 
-	//public static string ExampleHelloJson(string peerName = "example-peer") =>
-	//	JsonSerializer.Serialize(CreateHello(peerName), JsonSocketPeer.SerializerOptions);
-
-	//public static string ExampleAckJson(string peerName = "example-peer") =>
-	//	JsonSerializer.Serialize(CreateAck(peerName), JsonSocketPeer.SerializerOptions);
+	public static PointStatus CreatePointStatus(int id, string status) =>
+		new(id, status);
 }

@@ -21,6 +21,11 @@ public sealed class PeerConnectionRegistry : IPeerConnectionRegistry
 	internal int CountByRole(PeerRole role) =>
 		_connections.Values.Count(connection => connection.Role == role);
 
+	internal IReadOnlyCollection<PeerConnection> GetByRole(PeerRole role) =>
+		_connections.Values
+			.Where(connection => connection.Role == role)
+			.ToArray();
+
 	internal void Register(PeerConnection connection)
 	{
 		_connections[connection.Id] = connection;

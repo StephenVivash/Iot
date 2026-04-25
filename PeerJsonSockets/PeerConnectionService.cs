@@ -48,8 +48,28 @@ public sealed class PeerConnectionService
 	internal Task SendAndLogAsync<TPayload>(
 		PeerConnection connection,
 		string messageType,
-		TPayload payload) =>
-		SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, connection.CancellationToken);
+		TPayload payload,
+		CancellationToken cancellationToken = default)
+	{
+		if (!cancellationToken.CanBeCanceled)
+		{
+			return SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, connection.CancellationToken);
+		}
+
+		return SendAndLogWithLinkedCancellationAsync(connection, messageType, payload, cancellationToken);
+	}
+
+	private async Task SendAndLogWithLinkedCancellationAsync<TPayload>(
+		PeerConnection connection,
+		string messageType,
+		TPayload payload,
+		CancellationToken cancellationToken)
+	{
+		using CancellationTokenSource linkedCancellation =
+			CancellationTokenSource.CreateLinkedTokenSource(connection.CancellationToken, cancellationToken);
+
+		await SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, linkedCancellation.Token);
+	}
 
 	internal async Task SendAndLogAsync<TPayload>(
 		PeerRole role,

@@ -142,7 +142,7 @@ public sealed class PeerServerService
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)
 	{
 		LoopTaskScheduler<PeerServerLoopContext> scheduler = CreateServerLoopScheduler();
-		PeerServerLoopContext context = new(_connectionRegistry);
+		PeerServerLoopContext context = new(_connectionRegistry, _connectionService);
 
 		try
 		{
