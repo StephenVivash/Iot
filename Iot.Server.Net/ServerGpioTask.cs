@@ -30,6 +30,7 @@ internal sealed class	ServerGpioTask : IPeerServerLoopTask
 
 	public Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
+
 		if (gpioController != null) {
 
 			PinMode mode = pin!.GetPinMode();

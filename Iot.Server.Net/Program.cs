@@ -1,13 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System.Collections;
 using System.Data;
+using System.Net;
 
 using Iot.Data;
 using Iot.Server.Net;
 using PeerJsonSockets;
-using System.Net;
 
 internal static class Program
 {
@@ -41,10 +40,6 @@ internal static class Program
 			shutdown.Cancel();
 		};
 
-		DataTest();
-		//if (basePath.StartsWith("/home"))
-		//	GpioTest();
-
 		PeerRuntimeOptions options = new(Environment.MachineName);
 		PeerConnectionRegistry connectionRegistry = new();
 		PeerConnectionService connectionService = new(logger);
@@ -53,7 +48,11 @@ internal static class Program
 		List<Task> tasks = [];
 		if (startupMode.RunServer)
 		{
-			List<IPeerServerLoopTask> serverLoopTasks =	[ new ServerHeartbeatTask(logger) ];
+			List<IPeerServerLoopTask> serverLoopTasks =
+			[
+				new ServerHeartbeatTask(logger),
+				new ServerDataTask(logger, basePath),
+			];
 
 			if (basePath.StartsWith("/home"))
 				serverLoopTasks.Add(new ServerGpioTask(logger));
@@ -87,18 +86,14 @@ internal static class Program
 			{
 				case "-server":
 					if (++i >= args.Length || !int.TryParse(args[i], out serverPort))
-					{
 						throw new ArgumentException("Expected: -server <port>");
-					}
 
 					serverSpecified = true;
 					break;
 
 				case "-client":
 					if (++i >= args.Length)
-					{
 						throw new ArgumentException("Expected: -client <host:port>");
-					}
 
 					clientPeer = PeerAddressParser.Parse(args[i], logger)
 						?? throw new ArgumentException("Expected: -client <host:port>");
@@ -139,7 +134,8 @@ internal static class Program
 		});
 	}
 
-private static void DataTest()
+	/*
+	private static void DataTest()
 	{
 		DatabasePaths.Set(Path.Combine(basePath, "data", "Iot.Data.db"));
 		using var dbContext = IotDataStore.CreateMigratedDbContext();
@@ -175,4 +171,5 @@ private static void DataTest()
 				logger.LogInformation($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
 		}
 	}
+	*/
 }
