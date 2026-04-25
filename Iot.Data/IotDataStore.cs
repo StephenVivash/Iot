@@ -6,7 +6,7 @@ public static class IotDataStore
 {
     public static AppDbContext CreateMigratedDbContext()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(DatabasePaths.GetDatabasePath()) ?? Directory.GetCurrentDirectory());
+        //Directory.CreateDirectory(Path.GetDirectoryName(DatabasePaths.GetDatabasePath()) ?? Directory.GetCurrentDirectory());
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(DatabasePaths.GetConnectionString())

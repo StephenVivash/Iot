@@ -2,16 +2,21 @@ namespace Iot.Data;
 
 public static class DatabasePaths
 {
-    private const string DatabaseFileName = "Iot.Data.db";
+    private static string DatabasePath = "";
 
-    public static string GetDatabasePath()
-    {
+	public static void Set(string path)
+	{
 		//return Path.Combine(Directory.GetCurrentDirectory(), DatabaseFileName);
-		return Path.Combine(@"C:\Src\Iot\Iot.Data", DatabaseFileName);
-    }
+		DatabasePath = path;
+	}
+	//public static string GetDatabasePath()
+    //{
+	//	//return Path.Combine(Directory.GetCurrentDirectory(), DatabaseFileName);
+	//	return Path.Combine(@"C:\Src\Iot\Iot.Data", DatabaseFileName);
+    //}
 
     public static string GetConnectionString()
     {
-        return $"Data Source={GetDatabasePath()}";
+        return $"Data Source={DatabasePath}";
     }
 }

@@ -361,9 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/Iot.Data/Iot.Data.db
-/Iot.Data/Iot.Data.db-shm
-/Iot.Data/Iot.Data.db-wal
 /Iot.Server.Net/data/Iot.Data.db
 /Iot.Server.Net/data/Iot.Data.db-shm
 /Iot.Server.Net/data/Iot.Data.db-wal

@@ -4,37 +4,24 @@ using Microsoft.Extensions.Logging;
 using System.Collections;
 using System.Data;
 
-using System.Device.Gpio.Drivers;
-using System.Device.I2c;
-using System.Device.Pwm;
-using System.Device.Spi;
-using System.Net;
-
-using Iot.Device.Bmp180;
-using Iot.Device.Bmxx80;
-//using Iot.Device.Adc;
-//using Iot.Device.Tm1637;
-//using Iot.Device.CharacterLcd;
-using Iot.Device.Bmxx80.PowerMode;
-//using Iot.Device.Pcx857x;
-//using Iot.Device.FtCommon;
-using Iot.Device.Tm16xx;
-using System.Device.Gpio;
-//using System.Device.Adc;
-
 using Iot.Data;
 using Iot.Server.Net;
 using PeerJsonSockets;
+using System.Net;
 
 internal static class Program
 {
 	private const int DefaultPort = 5050;
+	private static ILogger logger = null;
+
+	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
+	//private const string basePath = @"/home/pi/iot";
 
 	private static async Task Main(string[] args)
 	{
 		using ILoggerFactory loggerFactory = CreateLoggerFactory();
 
-		ILogger logger = loggerFactory.CreateLogger("Iot.Server.Net");
+		logger = loggerFactory.CreateLogger("Iot.Server.Net");
 		StartupMode startupMode;
 		try
 		{
@@ -54,8 +41,9 @@ internal static class Program
 			shutdown.Cancel();
 		};
 
-		GpioTest();
 		DataTest();
+		//if (basePath.StartsWith("/home"))
+		//	GpioTest();
 
 		PeerRuntimeOptions options = new(Environment.MachineName);
 		PeerConnectionRegistry connectionRegistry = new();
@@ -65,15 +53,13 @@ internal static class Program
 		List<Task> tasks = [];
 		if (startupMode.RunServer)
 		{
-			List<IPeerServerLoopTask> serverLoopTasks =
-			[
-				new ConsoleServerHeartbeatTask(logger)
-			];
+			List<IPeerServerLoopTask> serverLoopTasks =	[ new ServerHeartbeatTask(logger) ];
+
+			if (basePath.StartsWith("/home"))
+				serverLoopTasks.Add(new ServerGpioTask(logger));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
-				options, connectionRegistry, connectionService,
-				logger,
-				serverLoopTasks);
+				options, connectionRegistry, connectionService,	logger,	serverLoopTasks);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));
@@ -139,8 +125,7 @@ internal static class Program
 
 		string logDirectory = configuration["FileLogging:Directory"] ?? "logs";
 		string logFileName = $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log";
-		//string logFilePath = Path.Combine(AppContext.BaseDirectory, logDirectory, logFileName);
-		string logFilePath = Path.Combine(@"C:\Src\Iot\Iot.Server.Net", logDirectory, logFileName);
+		string logFilePath = Path.Combine(basePath, logDirectory, logFileName);
 
 		return LoggerFactory.Create(builder =>
 		{
@@ -154,23 +139,9 @@ internal static class Program
 		});
 	}
 
-	private static void GpioTest()
+private static void DataTest()
 	{
-		//GpioController gpioController = new(); // PinNumberingScheme.Logical
-		//gpioController.OpenPin(10, PinMode.Input);
-
-		Tm1637? tm1637 = null;
-		//Bmp280? bmp280 = null;
-		PwmChannel? pwmPin = null;
-
-		ArrayList adcChannels = new();
-		ArrayList bmp280s = new();
-		ArrayList pwmPins = new();
-	}
-
-	private static void DataTest()
-	{
-		//String ds = "Data Source=/home/pi/iot/IotData.db";
+		DatabasePaths.Set(Path.Combine(basePath, "data", "Iot.Data.db"));
 		using var dbContext = IotDataStore.CreateMigratedDbContext();
 
 		var devices = dbContext.Devices
@@ -185,33 +156,23 @@ internal static class Program
 			.OrderBy(group => group.Id)
 			.ToList();
 
-		Console.WriteLine($"Database path: {DatabasePaths.GetDatabasePath()}");
-		Console.WriteLine($"Devices: {devices.Count}");
-		Console.WriteLine($"Points: {dbContext.Points.Count()}");
-		Console.WriteLine($"Groups: {groups.Count}");
-		Console.WriteLine($"GroupPoints: {dbContext.GroupPoints.Count()}");
-		Console.WriteLine();
+		logger.LogInformation($"Database: {DatabasePaths.GetConnectionString()}");
+		logger.LogInformation($"Devices: {devices.Count}");
+		logger.LogInformation($"Points: {dbContext.Points.Count()}");
+		logger.LogInformation($"Groups: {groups.Count}");
+		logger.LogInformation($"GroupPoints: {dbContext.GroupPoints.Count()}");
 
 		foreach (var device in devices)
 		{
-			Console.WriteLine($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
-
+			logger.LogInformation($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
 			foreach (var point in device.Points.OrderBy(point => point.Id))
-			{
-				Console.WriteLine($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
-			}
+				logger.LogInformation($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
 		}
-
-		Console.WriteLine();
-
 		foreach (var group in groups)
 		{
-			Console.WriteLine($"Group #{group.Id} | {group.Name}");
-
+			logger.LogInformation($"Group #{group.Id} | {group.Name}");
 			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
-			{
-				Console.WriteLine($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
-			}
+				logger.LogInformation($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
 		}
 	}
 }

@@ -15,7 +15,7 @@ namespace Iot.Client.Maui
 			var builder = MauiApp.CreateBuilder();
 			MainPageLogSink mainPageLogSink = new();
 			string logFilePath = Path.Combine(
-				@"C:\Src\Iot\Iot.Client.Maui",
+				@"C:\Src\Iot\Iot.Server.Net",
 				//FileSystem.Current.AppDataDirectory,
 				"logs",
 				$"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");

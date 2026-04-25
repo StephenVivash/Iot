@@ -7,6 +7,10 @@ namespace Iot.Client.Maui.Pages;
 public partial class MainPage : ContentPage
 {
 	private readonly MainPageLogSink _logSink;
+
+	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
+	//private const string basePath = @"/home/pi/iot";
+
 #if WINDOWS
 	private Microsoft.UI.Xaml.Controls.TextBox? _configuredTextBox;
 #endif
@@ -92,6 +96,7 @@ public partial class MainPage : ContentPage
 
 	private void DataTest()
 	{
+		DatabasePaths.Set(Path.Combine(basePath, "data", "Iot.Data.db"));
 		using var dbContext = IotDataStore.CreateMigratedDbContext();
 
 		var devices = dbContext.Devices
@@ -106,7 +111,7 @@ public partial class MainPage : ContentPage
 			.OrderBy(group => group.Id)
 			.ToList();
 
-		OnLogLineAppended($"Database path: {DatabasePaths.GetDatabasePath()}");
+		OnLogLineAppended($"Database: {DatabasePaths.GetConnectionString()}");
 		OnLogLineAppended($"Devices: {devices.Count}");
 		OnLogLineAppended($"Points: {dbContext.Points.Count()}");
 		OnLogLineAppended($"Groups: {groups.Count}");

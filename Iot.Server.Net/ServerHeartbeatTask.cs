@@ -3,23 +3,23 @@ using PeerJsonSockets;
 
 namespace Iot.Server.Net;
 
-internal sealed class ConsoleServerHeartbeatTask : IPeerServerLoopTask
+internal sealed class ServerHeartbeatTask : IPeerServerLoopTask
 {
 	private readonly ILogger _logger;
 
-	public ConsoleServerHeartbeatTask(ILogger logger)
+	public ServerHeartbeatTask(ILogger logger)
 	{
 		_logger = logger;
 	}
 
-	public string Name => "console.server.heartbeat";
+	public string Name => "server.heartbeat";
 
 	public TimeSpan Interval => TimeSpan.FromSeconds(30);
 
 	public Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
 		_logger.LogInformation(
-			"Console app server task heartbeat. Connected peers: {ConnectedPeerCount}. Connected clients: {ConnectedClientCount}.",
+			"Server heartbeat task. Connected peers: {ConnectedPeerCount}. Connected clients: {ConnectedClientCount}.",
 			context.ConnectedPeerCount,
 			context.ConnectedClientCount);
 		return Task.CompletedTask;
