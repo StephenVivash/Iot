@@ -4,14 +4,12 @@ namespace Iot.Data;
 
 public static class IotDataStore
 {
-    public static AppDbContext CreateMigratedDbContext()
+    public static AppDbContext CreateDbContext(string databasePath)
     {
-        //Directory.CreateDirectory(Path.GetDirectoryName(DatabasePaths.GetDatabasePath()) ?? Directory.GetCurrentDirectory());
-
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(DatabasePaths.GetConnectionString())
+		string databaseDirectory = $"Data Source={databasePath}";
+		var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(databaseDirectory)
             .Options;
-
         var dbContext = new AppDbContext(options);
         dbContext.Database.Migrate();
         return dbContext;

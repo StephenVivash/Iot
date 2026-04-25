@@ -96,8 +96,7 @@ public partial class MainPage : ContentPage
 
 	private void DataTest()
 	{
-		DatabasePaths.Set(Path.Combine(basePath, "data", "Iot.Data.db"));
-		using var dbContext = IotDataStore.CreateMigratedDbContext();
+		using var dbContext = IotDataStore.CreateDbContext(Path.Combine(basePath, "data", "Iot.Data.db"));
 
 		var devices = dbContext.Devices
 			.AsNoTracking()
@@ -111,7 +110,6 @@ public partial class MainPage : ContentPage
 			.OrderBy(group => group.Id)
 			.ToList();
 
-		OnLogLineAppended($"Database: {DatabasePaths.GetConnectionString()}");
 		OnLogLineAppended($"Devices: {devices.Count}");
 		OnLogLineAppended($"Points: {dbContext.Points.Count()}");
 		OnLogLineAppended($"Groups: {groups.Count}");
@@ -120,26 +118,15 @@ public partial class MainPage : ContentPage
 		foreach (var device in devices)
 		{
 			OnLogLineAppended($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
-
 			foreach (var point in device.Points.OrderBy(point => point.Id))
-			{
 				OnLogLineAppended($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
-			}
 		}
 
 		foreach (var group in groups)
 		{
 			OnLogLineAppended($"Group #{group.Id} | {group.Name}");
-
 			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
-			{
 				OnLogLineAppended($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
-			}
 		}
 	}
-
-
-
-
-
 }
