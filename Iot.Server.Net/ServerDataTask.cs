@@ -25,11 +25,11 @@ internal sealed class ServerDataTask : IPeerServerLoopTask
 		PointStatus[] pointStatuses = await _dbContext.Points
 			.AsNoTracking()
 			.OrderBy(point => point.Id)
-			.Select(point => HandshakeMessages.CreatePointStatus(point.Id, point.Status))
+			.Select(point => PeerMessages.CreatePointStatus(point.Id, point.Status))
 			.ToArrayAsync(cancellationToken);
 
 		foreach (PointStatus pointStatus in pointStatuses)
-			await context.SendToConnectedClientsAsync(HandshakeMessages.PointStatusType, pointStatus, cancellationToken);
+			await context.SendToConnectedClientsAsync(PeerMessages.PointStatusType, pointStatus, cancellationToken);
 		//_logger.LogInformation();
 	}
 }

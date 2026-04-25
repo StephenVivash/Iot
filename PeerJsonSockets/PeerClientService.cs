@@ -117,8 +117,8 @@ public sealed class PeerClientService
 		await _connectionService.SendAndLogAsync(
 			PeerRole.Client,
 			peer,
-			HandshakeMessages.HandshakeType,
-			HandshakeMessages.CreateHello(_options.PeerName),
+			PeerMessages.HandshakeType,
+			PeerMessages.CreateHello(_options.PeerName),
 			cancellationToken);
 		JsonPeerMessage? ackMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Client, peer, cancellationToken);
 		if (ackMessage is null)
@@ -129,8 +129,8 @@ public sealed class PeerClientService
 		await _connectionService.SendAndLogAsync(
 			PeerRole.Client,
 			peer,
-			HandshakeMessages.StatusType,
-			HandshakeMessages.CreateStatus(_options.PeerName, 1),
+			PeerMessages.StatusType,
+			PeerMessages.CreateStatus(_options.PeerName, 1),
 			cancellationToken);
 		JsonPeerMessage? statusMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Client, peer, cancellationToken);
 		if (statusMessage is null)
@@ -238,8 +238,8 @@ public sealed class PeerClientService
 	{
 		try
 		{
-			Poll poll = HandshakeMessages.CreatePoll(_options.PeerName);
-			await _connectionService.SendAndLogAsync(connection, HandshakeMessages.PollType, poll);
+			Poll poll = PeerMessages.CreatePoll(_options.PeerName);
+			await _connectionService.SendAndLogAsync(connection, PeerMessages.PollType, poll);
 		}
 		catch (Exception ex) when (!connection.CancellationToken.IsCancellationRequested)
 		{
@@ -250,12 +250,18 @@ public sealed class PeerClientService
 
 	private Task ProcessClientMessageAsync(PeerConnection connection, JsonPeerMessage message)
 	{
-		if (message.Type == HandshakeMessages.PollAckType)
+		if (message.Type == PeerMessages.PollAckType)
 		{
 			return Task.CompletedTask;
 		}
 
-		if (message.Type == HandshakeMessages.PollType)
+		if (message.Type == PeerMessages.PointStatusType)
+		{
+			//PointStatus ps = message.Payload.Deserialize<PointStatus>()!;
+			//_logger.LogDebug("Client processed point status from {RemotePeer}; point {id} {status}.", connection.RemoteDisplayName, ps.Id, ps.Status);
+		}
+
+		if (message.Type == PeerMessages.PollType)
 		{
 			_logger.LogDebug("Client ignored poll from {RemotePeer}; poll acknowledgements are handled by server connections.", connection.RemoteDisplayName);
 		}

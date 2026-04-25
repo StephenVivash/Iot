@@ -47,24 +47,24 @@ public sealed class PeerServerService
 		try
 		{
 			JsonPeerMessage? helloMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Server, peer, cancellationToken);
-			if (helloMessage?.Type == HandshakeMessages.HandshakeType)
+			if (helloMessage?.Type == PeerMessages.HandshakeType)
 			{
 				await _connectionService.SendAndLogAsync(
 					PeerRole.Server,
 					peer,
-					HandshakeMessages.AckType,
-					HandshakeMessages.CreateAck(_options.PeerName),
+					PeerMessages.AckType,
+					PeerMessages.CreateAck(_options.PeerName),
 					cancellationToken);
 			}
 
 			JsonPeerMessage? statusMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Server, peer, cancellationToken);
-			if (statusMessage?.Type == HandshakeMessages.StatusType)
+			if (statusMessage?.Type == PeerMessages.StatusType)
 			{
 				await _connectionService.SendAndLogAsync(
 					PeerRole.Server,
 					peer,
-					HandshakeMessages.StatusType,
-					HandshakeMessages.CreateStatus(_options.PeerName, _connectionRegistry.CountByRole(PeerRole.Server) + 1),
+					PeerMessages.StatusType,
+					PeerMessages.CreateStatus(_options.PeerName, _connectionRegistry.CountByRole(PeerRole.Server) + 1),
 					cancellationToken);
 			}
 
@@ -125,7 +125,7 @@ public sealed class PeerServerService
 
 	private async Task ProcessAcceptedClientMessageAsync(PeerConnection connection, JsonPeerMessage message)
 	{
-		if (message.Type != HandshakeMessages.PollType)
+		if (message.Type != PeerMessages.PollType)
 		{
 			return;
 		}
@@ -135,8 +135,8 @@ public sealed class PeerServerService
 
 		await _connectionService.SendAndLogAsync(
 			connection,
-			HandshakeMessages.PollAckType,
-			HandshakeMessages.CreatePollAck(_options.PeerName, pollId));
+			PeerMessages.PollAckType,
+			PeerMessages.CreatePollAck(_options.PeerName, pollId));
 	}
 
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)

@@ -14,7 +14,7 @@ public sealed record PeerStatus(string PeerName, string State, int ActiveConnect
 
 public sealed record PointStatus(int Id, string Status);
 
-public static class HandshakeMessages
+public static class PeerMessages
 {
 	public const string HandshakeType = "handshake";
 	public const string AckType = "handshake.ack";
