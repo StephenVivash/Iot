@@ -1,4 +1,5 @@
 using Iot.Device.Tm16xx;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PeerJsonSockets;
 using System.Device.Gpio;
@@ -28,11 +29,24 @@ internal sealed class	ServerGpioTask : IPeerServerLoopTask
 
 	public TimeSpan Interval => TimeSpan.FromSeconds(10);
 
-	public Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
+	public async Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
+		await using var dbContext = context.Database.CreateDbContext();
+		var points = await dbContext.Points
+			.AsNoTracking()
+			.OrderBy(point => point.Id)
+			.Select(point => new
+			{
+				point.Id,
+				point.TypeId,
+				point.Status,
+				point.Status0,
+				point.Status1
+			})
+			.ToArrayAsync(cancellationToken);
 
-		if (gpioController != null) {
-
+		if (gpioController != null)
+		{
 			PinMode mode = pin!.GetPinMode();
 			PinValue value = pin.Read();
 			bool screen = tm1637!.IsScreenOn;
@@ -41,7 +55,7 @@ internal sealed class	ServerGpioTask : IPeerServerLoopTask
 			_logger.LogInformation("Server GPIO task Pin: 10 {mode} {value}, I2C {info1} , PWM {info2}",
 				mode, value, info1, info2);
 		}
-		return Task.CompletedTask;
+		//return Task.CompletedTask;
 	}
 
 	private void InitialiseGpio()
