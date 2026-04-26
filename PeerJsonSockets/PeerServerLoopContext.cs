@@ -20,12 +20,32 @@ public sealed class PeerServerLoopContext
 
 	public int ConnectedClientCount => _connectionRegistry.CountByRole(nameof(PeerRole.Server));
 
+	public int ConnectedServerCount => _connectionRegistry.CountByRole(nameof(PeerRole.Client));
+
 	public async Task SendToConnectedClientsAsync<TPayload>(
 		string messageType,
 		TPayload payload,
 		CancellationToken cancellationToken = default)
 	{
 		foreach (PeerConnection connection in _connectionRegistry.GetByRole(PeerRole.Server))
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+
+			if (connection.CancellationToken.IsCancellationRequested)
+			{
+				continue;
+			}
+
+			await _connectionService.SendAndLogAsync(connection, messageType, payload, cancellationToken);
+		}
+	}
+
+	public async Task SendToConnectedPeersAsync<TPayload>(
+		string messageType,
+		TPayload payload,
+		CancellationToken cancellationToken = default)
+	{
+		foreach (PeerConnection connection in _connectionRegistry.GetAll())
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 

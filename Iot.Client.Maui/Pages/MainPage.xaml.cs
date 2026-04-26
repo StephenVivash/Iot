@@ -15,7 +15,6 @@ public partial class MainPage : ContentPage
 	private bool _isDisposingRuntime;
 
 	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
-	//private const string basePath = @"/home/pi/iot";
 
 #if WINDOWS
 	private Microsoft.UI.Xaml.Controls.TextBox? _configuredTextBox;
@@ -36,10 +35,7 @@ public partial class MainPage : ContentPage
 
 	private static ILoggerFactory CreateLoggerFactory(MainPageLogSink logSink)
 	{
-		string logFilePath = Path.Combine(
-			basePath,
-			"logs",
-			$"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
+		string logFilePath = Path.Combine(basePath, "logs", $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
 
 		return LoggerFactory.Create(logging =>
 		{

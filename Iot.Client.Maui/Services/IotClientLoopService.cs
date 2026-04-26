@@ -5,7 +5,7 @@ namespace Iot.Client.Maui.Services;
 
 public sealed class IotClientLoopService : IDisposable
 {
-	private static readonly PeerAddress LocalPeerAddress = new("localhost", 5050);
+	private static readonly PeerAddress LocalPeerAddress = new("pi51.local", 5050);
 
 	private readonly ILogger _logger;
 	private readonly Lock _lock = new();

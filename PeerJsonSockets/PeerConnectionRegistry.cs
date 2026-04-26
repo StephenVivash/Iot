@@ -26,6 +26,9 @@ public sealed class PeerConnectionRegistry : IPeerConnectionRegistry
 			.Where(connection => connection.Role == role)
 			.ToArray();
 
+	internal IReadOnlyCollection<PeerConnection> GetAll() =>
+		_connections.Values.ToArray();
+
 	internal void Register(PeerConnection connection)
 	{
 		_connections[connection.Id] = connection;

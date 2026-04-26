@@ -13,14 +13,10 @@ internal static class Program
 	private const int DefaultPort = 5050;
 	private static ILogger logger = null;
 
-	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
-	//private const string basePath = @"/home/pi/iot";
+	private static string basePath;
 
 	private static async Task Main(string[] args)
 	{
-		using ILoggerFactory loggerFactory = CreateLoggerFactory(args.Any(arg => arg.Equals("-console", StringComparison.OrdinalIgnoreCase)));
-
-		logger = loggerFactory.CreateLogger("Iot.Server.Net");
 		StartupMode startupMode;
 		try
 		{
@@ -28,10 +24,16 @@ internal static class Program
 		}
 		catch (ArgumentException ex)
 		{
-			logger.LogError("{Message}", ex.Message);
-			logger.LogInformation("Usage: Iot.Server.Net [-server <port>] [-client <host:port>] [-initdb] [-console]");
+			Console.WriteLine($"{ex.Message}");
+			Console.WriteLine("Usage: Iot.Server.Net [-server <port>] [-client <host:port>] [-id <deviceId>] [-initdb] [-console]");
 			return;
 		}
+
+		int deviceId = startupMode.DeviceId ?? 5;
+		basePath = deviceId == 1 ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
+
+		using ILoggerFactory loggerFactory = CreateLoggerFactory(args.Any(arg => arg.Equals("-console", StringComparison.OrdinalIgnoreCase)));
+		logger = loggerFactory.CreateLogger("Iot.Server.Net");
 
 		using CancellationTokenSource shutdown = new();
 		Console.CancelKeyPress += (_, eventArgs) =>
@@ -61,10 +63,10 @@ internal static class Program
 				new ServerHeartbeatTask(logger),
 			];
 
-			if (basePath.StartsWith("/home"))
-				serverLoopTasks.Add(new ServerGpioTask(logger));
+			if (deviceId == 1)
+				serverLoopTasks.Add(new ServerGpioTask(logger, deviceId));
 			else
-				serverLoopTasks.Add(new ServerDataTask(logger));
+				serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
 				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
@@ -88,6 +90,7 @@ internal static class Program
 		bool serverSpecified = false;
 		int serverPort = DefaultPort;
 		PeerAddress? clientPeer = null;
+		int? deviceId = null;
 		bool initialiseDatabase = false;
 
 		for (int i = 0; i < args.Length; i++)
@@ -109,6 +112,13 @@ internal static class Program
 						?? throw new ArgumentException("Expected: -client <host:port>");
 					break;
 
+				case "-id":
+					if (++i >= args.Length || !int.TryParse(args[i], out int parsedDeviceId) || parsedDeviceId <= 0)
+						throw new ArgumentException("Expected: -id <deviceId>");
+
+					deviceId = parsedDeviceId;
+					break;
+
 				case "-initdb":
 					initialiseDatabase = true;
 					break;
@@ -118,15 +128,15 @@ internal static class Program
 
 				default:
 					throw new ArgumentException(
-						$"Unknown argument '{args[i]}'. Expected -server <port>, -client <host:port>, -initdb, or -console.");
+						$"Unknown argument '{args[i]}'. Expected -server <port>, -client <host:port>, -id <deviceId>, -initdb, or -console.");
 			}
 		}
 
 		bool runServer = serverSpecified || clientPeer is null;
-		return new StartupMode(runServer, serverPort, clientPeer, initialiseDatabase);
+		return new StartupMode(runServer, serverPort, clientPeer, deviceId, initialiseDatabase);
 	}
 
-	private sealed record StartupMode(bool RunServer, int ServerPort, PeerAddress? ClientPeer, bool InitialiseDatabase);
+	private sealed record StartupMode(bool RunServer, int ServerPort, PeerAddress? ClientPeer, int? DeviceId, bool InitialiseDatabase);
 
 	private static ILoggerFactory CreateLoggerFactory(bool enableConsole)
 	{
