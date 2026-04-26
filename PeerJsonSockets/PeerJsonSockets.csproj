@@ -10,4 +10,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Iot.Data\Iot.Data.csproj" />
+  </ItemGroup>
+
 </Project>

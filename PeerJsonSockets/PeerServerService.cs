@@ -1,4 +1,5 @@
 using System.Net;
+using Iot.Data;
 using Microsoft.Extensions.Logging;
 
 namespace PeerJsonSockets;
@@ -12,6 +13,7 @@ public sealed class PeerServerService
 	private readonly IReadOnlyList<IPeerServerLoopTask> _loopTasks;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
+	private readonly IotDatabase _database;
 
 	public PeerServerService(
 		IPAddress listenAddress,
@@ -20,6 +22,7 @@ public sealed class PeerServerService
 		PeerConnectionRegistry connectionRegistry,
 		PeerConnectionService connectionService,
 		ILogger logger,
+		IotDatabase database,
 		IEnumerable<IPeerServerLoopTask>? loopTasks = null)
 	{
 		_listenAddress = listenAddress;
@@ -28,6 +31,7 @@ public sealed class PeerServerService
 		_connectionRegistry = connectionRegistry;
 		_connectionService = connectionService;
 		_logger = logger;
+		_database = database;
 		_loopTasks = loopTasks?.ToArray() ?? [];
 	}
 
@@ -36,7 +40,6 @@ public sealed class PeerServerService
 		await using PeerSocketServer server = new(_listenAddress, _listenPort);
 		Task serverTask = server.RunAsync(HandleIncomingPeerAsync, cancellationToken);
 		Task serverLoopTask = RunServerLoopAsync(cancellationToken);
-
 		await Task.WhenAll(serverTask, serverLoopTask);
 	}
 
@@ -49,22 +52,16 @@ public sealed class PeerServerService
 			JsonPeerMessage? helloMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Server, peer, cancellationToken);
 			if (helloMessage?.Type == PeerMessages.HandshakeType)
 			{
-				await _connectionService.SendAndLogAsync(
-					PeerRole.Server,
-					peer,
-					PeerMessages.AckType,
-					PeerMessages.CreateAck(_options.PeerName),
+				await _connectionService.SendAndLogAsync(PeerRole.Server, peer,
+					PeerMessages.AckType, PeerMessages.CreateAck(_options.PeerName),
 					cancellationToken);
 			}
 
 			JsonPeerMessage? statusMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Server, peer, cancellationToken);
 			if (statusMessage?.Type == PeerMessages.StatusType)
 			{
-				await _connectionService.SendAndLogAsync(
-					PeerRole.Server,
-					peer,
-					PeerMessages.StatusType,
-					PeerMessages.CreateStatus(_options.PeerName, _connectionRegistry.CountByRole(PeerRole.Server) + 1),
+				await _connectionService.SendAndLogAsync(PeerRole.Server, peer,
+					PeerMessages.StatusType, PeerMessages.CreateStatus(_options.PeerName, _connectionRegistry.CountByRole(PeerRole.Server) + 1),
 					cancellationToken);
 			}
 
@@ -86,10 +83,8 @@ public sealed class PeerServerService
 		_connectionService.ApplyKnownPeerName(connection);
 
 		_connectionRegistry.Register(connection);
-		_logger.LogWarning(
-			"Server registered accepted client {RemotePeer}. Connected clients: {ConnectedClientCount}.",
-			connection.RemoteDisplayName,
-			_connectionRegistry.CountByRole(PeerRole.Server));
+		_logger.LogWarning("Server registered accepted client {RemotePeer}. Connected clients: {ConnectedClientCount}.",
+			connection.RemoteDisplayName, _connectionRegistry.CountByRole(PeerRole.Server));
 
 		try
 		{
@@ -97,10 +92,7 @@ public sealed class PeerServerService
 			{
 				JsonPeerMessage? message = await _connectionService.ReceiveAndLogAsync(connection);
 				if (message is null)
-				{
 					break;
-				}
-
 				await ProcessAcceptedClientMessageAsync(connection, message);
 			}
 		}
@@ -116,10 +108,8 @@ public sealed class PeerServerService
 			connection.Stop();
 			_connectionRegistry.Unregister(connection.Id);
 
-			_logger.LogInformation(
-				"Server unregistered accepted client {RemotePeer}. Connected clients: {ConnectedClientCount}.",
-				connection.RemoteDisplayName,
-				_connectionRegistry.CountByRole(PeerRole.Server));
+			_logger.LogInformation("Server unregistered accepted client {RemotePeer}. Connected clients: {ConnectedClientCount}.",
+				connection.RemoteDisplayName, _connectionRegistry.CountByRole(PeerRole.Server));
 		}
 	}
 
@@ -133,16 +123,14 @@ public sealed class PeerServerService
 		Poll? poll = JsonSocketPeer.ReadPayload<Poll>(message);
 		string pollId = poll?.PollId ?? message.Id;
 
-		await _connectionService.SendAndLogAsync(
-			connection,
-			PeerMessages.PollAckType,
+		await _connectionService.SendAndLogAsync(connection, PeerMessages.PollAckType,
 			PeerMessages.CreatePollAck(_options.PeerName, pollId));
 	}
 
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)
 	{
 		LoopTaskScheduler<PeerServerLoopContext> scheduler = CreateServerLoopScheduler();
-		PeerServerLoopContext context = new(_connectionRegistry, _connectionService);
+		PeerServerLoopContext context = new(_connectionRegistry, _connectionService, _database);
 
 		try
 		{
@@ -173,8 +161,7 @@ public sealed class PeerServerService
 
 	private Task RunServerConnectionSummaryAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation(
-			"Server task connection summary. Connected clients: {ConnectedClientCount}.",
+		_logger.LogInformation("Server task connection summary. Connected clients: {ConnectedClientCount}.",
 			context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}

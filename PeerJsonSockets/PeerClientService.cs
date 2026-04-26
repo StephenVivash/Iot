@@ -1,4 +1,6 @@
 using System.Net.Sockets;
+using Iot.Data;
+using Iot.Data.Models;
 using Microsoft.Extensions.Logging;
 
 namespace PeerJsonSockets;
@@ -10,18 +12,21 @@ public sealed class PeerClientService
 	private readonly IReadOnlyList<IPeerClientLoopTask> _loopTasks;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
+	private readonly IotDatabase _database;
 
 	public PeerClientService(
 		PeerRuntimeOptions options,
 		PeerConnectionRegistry connectionRegistry,
 		PeerConnectionService connectionService,
 		ILogger logger,
+		IotDatabase database,
 		IEnumerable<IPeerClientLoopTask>? loopTasks = null)
 	{
 		_options = options;
 		_connectionRegistry = connectionRegistry;
 		_connectionService = connectionService;
 		_logger = logger;
+		_database = database;
 		_loopTasks = loopTasks?.ToArray() ?? [];
 	}
 
@@ -55,8 +60,7 @@ public sealed class PeerClientService
 				? _options.FastReconnectDelay
 				: _options.SlowReconnectDelay;
 
-			_logger.LogInformation(
-				"Client reconnecting to {PeerAddress} in {DelaySeconds:N0} seconds. Attempt {ReconnectAttempt}.",
+			_logger.LogInformation("Client reconnecting to {PeerAddress} in {DelaySeconds:N0} seconds. Attempt {ReconnectAttempt}.",
 				peerAddress, delay.TotalSeconds, reconnectAttempt);
 
 			try
@@ -77,10 +81,8 @@ public sealed class PeerClientService
 		_connectionService.ApplyKnownPeerName(connection);
 
 		_connectionRegistry.Register(connection);
-		_logger.LogWarning(
-			"Client registered server connection {RemotePeer}. Connected to server: {ConnectedToServer}.",
-			connection.RemoteDisplayName,
-			_connectionRegistry.CountByRole(PeerRole.Client) > 0);
+		_logger.LogWarning("Client registered server connection {RemotePeer}. Connected to server: {ConnectedToServer}.",
+			connection.RemoteDisplayName, _connectionRegistry.CountByRole(PeerRole.Client) > 0);
 
 		Task readerTask = ReadPeerMessagesAsync(connection);
 		Task clientLoopTask = RunClientLoopAsync(connection);
@@ -102,10 +104,8 @@ public sealed class PeerClientService
 			{
 			}
 
-			_logger.LogWarning(
-				"Client unregistered server connection {RemotePeer}. Connected to server: {ConnectedToServer}.",
-				connection.RemoteDisplayName,
-				_connectionRegistry.CountByRole(PeerRole.Client) > 0);
+			_logger.LogWarning("Client unregistered server connection {RemotePeer}. Connected to server: {ConnectedToServer}.",
+				connection.RemoteDisplayName, _connectionRegistry.CountByRole(PeerRole.Client) > 0);
 		}
 	}
 
@@ -114,30 +114,20 @@ public sealed class PeerClientService
 		await using JsonSocketPeer peer = await JsonSocketPeer.ConnectAsync(peerAddress.Host, peerAddress.Port, cancellationToken);
 		_logger.LogWarning("Client connected to {RemotePeer}.", _connectionService.GetRemoteDisplayName(peer));
 
-		await _connectionService.SendAndLogAsync(
-			PeerRole.Client,
-			peer,
-			PeerMessages.HandshakeType,
-			PeerMessages.CreateHello(_options.PeerName),
+		await _connectionService.SendAndLogAsync(PeerRole.Client, peer,
+			PeerMessages.HandshakeType,	PeerMessages.CreateHello(_options.PeerName),
 			cancellationToken);
 		JsonPeerMessage? ackMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Client, peer, cancellationToken);
 		if (ackMessage is null)
-		{
 			throw new InvalidOperationException("Client connection closed during handshake.");
-		}
 
-		await _connectionService.SendAndLogAsync(
-			PeerRole.Client,
-			peer,
-			PeerMessages.StatusType,
-			PeerMessages.CreateStatus(_options.PeerName, 1),
+		await _connectionService.SendAndLogAsync(PeerRole.Client, peer,
+			PeerMessages.StatusType, PeerMessages.CreateStatus(_options.PeerName, 1),
 			cancellationToken);
 		JsonPeerMessage? statusMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Client, peer, cancellationToken);
-		if (statusMessage is null)
-		{
-			throw new InvalidOperationException("Client connection closed during status exchange.");
-		}
 
+		if (statusMessage is null)
+			throw new InvalidOperationException("Client connection closed during status exchange.");
 		await RunConnectedPeerAsync(peer, cancellationToken);
 	}
 
@@ -149,10 +139,7 @@ public sealed class PeerClientService
 			{
 				JsonPeerMessage? message = await _connectionService.ReceiveAndLogAsync(connection);
 				if (message is null)
-				{
 					break;
-				}
-
 				connection.IncomingMessages.Enqueue(message);
 			}
 		}
@@ -162,13 +149,9 @@ public sealed class PeerClientService
 		catch (IOException ex)
 		{
 			if (ex.InnerException is SocketException)
-			{
 				_logger.LogWarning("Client connection to {RemotePeer} closed by remote peer.", connection.RemoteDisplayName);
-			}
 			else
-			{
 				_logger.LogError(ex, "Client reader for {RemotePeer} failed.", connection.RemoteDisplayName);
-			}
 		}
 		finally
 		{
@@ -179,20 +162,18 @@ public sealed class PeerClientService
 	private async Task RunClientLoopAsync(PeerConnection connection)
 	{
 		LoopTaskScheduler<PeerClientLoopContext> scheduler = CreateClientLoopScheduler();
-		PeerClientLoopContext context = new(connection);
+		PeerClientLoopContext context = new(connection, _database);
 
 		try
 		{
 			while (!connection.CancellationToken.IsCancellationRequested)
 			{
 				await scheduler.RunDueTasksAsync(context, connection.CancellationToken);
-
 				while (connection.IncomingMessages.TryDequeue(out JsonPeerMessage? message))
 				{
 					await ProcessClientMessageAsync(connection, message);
 					context.ProcessedMessageCount++;
 				}
-
 				await Task.Delay(_options.LoopDelay, connection.CancellationToken);
 			}
 		}
@@ -204,33 +185,24 @@ public sealed class PeerClientService
 	private LoopTaskScheduler<PeerClientLoopContext> CreateClientLoopScheduler()
 	{
 		LoopTaskScheduler<PeerClientLoopContext> scheduler = new(_logger);
-
 		scheduler.Register("client.poll", _options.PollInterval, RunClientPollAsync);
 		scheduler.Register("client.summary", _options.MaintenanceInterval, RunClientSummaryAsync);
 		foreach (IPeerClientLoopTask loopTask in _loopTasks)
-		{
 			scheduler.Register(loopTask.Name, loopTask.Interval, loopTask.ExecuteAsync);
-		}
-
 		return scheduler;
 	}
 
 	private async Task RunClientPollAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
 		PeerConnection connection = context.Connection;
-
 		await SendPollAsync(connection);
 		context.SentPollCount++;
 	}
 
 	private Task RunClientSummaryAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation(
-			"Client summary for {RemotePeer}. Sent polls: {SentPollCount}. Processed messages: {ProcessedMessageCount}. Queued messages: {QueuedMessageCount}.",
-			context.RemoteDisplayName,
-			context.SentPollCount,
-			context.ProcessedMessageCount,
-			context.QueuedMessageCount);
+		_logger.LogInformation("Client summary for {RemotePeer}. Sent polls: {SentPollCount}. Processed messages: {ProcessedMessageCount}. Queued messages: {QueuedMessageCount}.",
+			context.RemoteDisplayName, context.SentPollCount, context.ProcessedMessageCount, context.QueuedMessageCount);
 		return Task.CompletedTask;
 	}
 
@@ -248,12 +220,10 @@ public sealed class PeerClientService
 		}
 	}
 
-	private Task ProcessClientMessageAsync(PeerConnection connection, JsonPeerMessage message)
+	private async Task ProcessClientMessageAsync(PeerConnection connection, JsonPeerMessage message)
 	{
 		if (message.Type == PeerMessages.PollAckType)
-		{
-			return Task.CompletedTask;
-		}
+			return;
 
 		if (message.Type == PeerMessages.PointStatusType)
 		{
@@ -262,19 +232,33 @@ public sealed class PeerClientService
 			{
 				_logger.LogWarning("Client received invalid point status from {RemotePeer}.",
 					connection.RemoteDisplayName);
-				return Task.CompletedTask;
+				return;
 			}
 
-			_logger.LogInformation("Client processed point status from {RemotePeer}. Point {PointId}: {Status}.",
-				connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
-			return Task.CompletedTask;
+			await using AppDbContext dbContext = _database.CreateDbContext();
+			Point? point = await dbContext.Points.FindAsync([pointStatus.Id], connection.CancellationToken);
+			if (point is null)
+			{
+				_logger.LogWarning("Client received point status from {RemotePeer} for unknown point {PointId}: {Status}.",
+					connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
+				return;
+			}
+
+			point.Status = pointStatus.Status;
+			point.TimeStamp = DateTime.UtcNow;
+			await dbContext.SaveChangesAsync(connection.CancellationToken);
+
+			string units = string.IsNullOrWhiteSpace(point.Units)
+				? string.Empty: $" {point.Units}";
+
+			_logger.LogInformation("Client processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
+				connection.RemoteDisplayName, point.Name, point.Id,	point.Status, units);
+			return;
 		}
 
 		if (message.Type == PeerMessages.PollType)
-		{
 			_logger.LogDebug("Client ignored poll from {RemotePeer}; poll acknowledgements are handled by server connections.", connection.RemoteDisplayName);
-		}
 
-		return Task.CompletedTask;
+		return;
 	}
 }

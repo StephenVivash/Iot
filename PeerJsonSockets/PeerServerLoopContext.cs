@@ -1,3 +1,5 @@
+using Iot.Data;
+
 namespace PeerJsonSockets;
 
 public sealed class PeerServerLoopContext
@@ -5,11 +7,14 @@ public sealed class PeerServerLoopContext
 	private readonly PeerConnectionRegistry _connectionRegistry;
 	private readonly PeerConnectionService _connectionService;
 
-	internal PeerServerLoopContext(PeerConnectionRegistry connectionRegistry, PeerConnectionService connectionService)
+	internal PeerServerLoopContext(PeerConnectionRegistry connectionRegistry, PeerConnectionService connectionService, IotDatabase database)
 	{
 		_connectionRegistry = connectionRegistry;
 		_connectionService = connectionService;
+		Database = database;
 	}
+
+	public IotDatabase Database { get; }
 
 	public int ConnectedPeerCount => _connectionRegistry.Count;
 

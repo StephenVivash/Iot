@@ -43,6 +43,7 @@ internal static class Program
 		PeerRuntimeOptions options = new(Environment.MachineName);
 		PeerConnectionRegistry connectionRegistry = new();
 		PeerConnectionService connectionService = new(logger);
+		IotDatabase database = new(Path.Combine(basePath, "data", "Iot.Data.db"));
 		logger.LogWarning("Host name: {PeerName}", options.PeerName);
 
 		List<Task> tasks = [];
@@ -51,14 +52,14 @@ internal static class Program
 			List<IPeerServerLoopTask> serverLoopTasks =
 			[
 				new ServerHeartbeatTask(logger),
-				new ServerDataTask(logger, basePath),
+				new ServerDataTask(logger),
 			];
 
 			if (basePath.StartsWith("/home"))
 				serverLoopTasks.Add(new ServerGpioTask(logger));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
-				options, connectionRegistry, connectionService,	logger,	serverLoopTasks);
+				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));
@@ -67,7 +68,7 @@ internal static class Program
 		if (startupMode.ClientPeer is not null)
 		{
 			PeerClientService clientService = new(options, connectionRegistry,
-				connectionService, logger);
+				connectionService, logger, database);
 			tasks.Add(clientService.RunAsync(startupMode.ClientPeer, shutdown.Token));
 		}
 

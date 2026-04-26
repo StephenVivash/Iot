@@ -1,15 +1,20 @@
+using Iot.Data;
+
 namespace PeerJsonSockets;
 
 public sealed class PeerClientLoopContext
 {
 	private readonly PeerConnection _connection;
 
-	internal PeerClientLoopContext(PeerConnection connection)
+	internal PeerClientLoopContext(PeerConnection connection, IotDatabase database)
 	{
 		_connection = connection;
+		Database = database;
 	}
 
 	internal PeerConnection Connection => _connection;
+
+	public IotDatabase Database { get; }
 
 	public string RemoteDisplayName => _connection.RemoteDisplayName;
 
