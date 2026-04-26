@@ -2,6 +2,20 @@ namespace Iot.Data.Models;
 
 public sealed class Device
 {
+    public Device()
+    {
+    }
+
+    public Device(int id, int parentDeviceId, string name, string description, eDeviceType typeId, string status)
+    {
+        Id = id;
+        ParentDeviceId = parentDeviceId;
+        Name = name;
+        Description = description;
+        TypeId = (int)typeId;
+        Status = status;
+    }
+
     public int Id { get; set; }
 
     public int ParentDeviceId { get; set; }

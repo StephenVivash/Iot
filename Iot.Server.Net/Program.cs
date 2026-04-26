@@ -18,7 +18,7 @@ internal static class Program
 
 	private static async Task Main(string[] args)
 	{
-		using ILoggerFactory loggerFactory = CreateLoggerFactory();
+		using ILoggerFactory loggerFactory = CreateLoggerFactory(args.Any(arg => arg.Equals("-console", StringComparison.OrdinalIgnoreCase)));
 
 		logger = loggerFactory.CreateLogger("Iot.Server.Net");
 		StartupMode startupMode;
@@ -29,7 +29,7 @@ internal static class Program
 		catch (ArgumentException ex)
 		{
 			logger.LogError("{Message}", ex.Message);
-			logger.LogInformation("Usage: ConsoleApp1 [-server <port>] [-client <host:port>]");
+			logger.LogInformation("Usage: Iot.Server.Net [-server <port>] [-client <host:port>] [-initdb] [-console]");
 			return;
 		}
 
@@ -44,6 +44,13 @@ internal static class Program
 		PeerConnectionRegistry connectionRegistry = new();
 		PeerConnectionService connectionService = new(logger);
 		IotDatabase database = new(Path.Combine(basePath, "data", "Iot.Data.db"));
+		if (startupMode.InitialiseDatabase)
+		{
+			await using AppDbContext dbContext = database.CreateDbContext();
+			dbContext.InitialiseDB();
+			logger.LogWarning("Database initialised.");
+		}
+
 		logger.LogWarning("Host name: {PeerName}", options.PeerName);
 
 		List<Task> tasks = [];
@@ -80,6 +87,7 @@ internal static class Program
 		bool serverSpecified = false;
 		int serverPort = DefaultPort;
 		PeerAddress? clientPeer = null;
+		bool initialiseDatabase = false;
 
 		for (int i = 0; i < args.Length; i++)
 		{
@@ -100,19 +108,26 @@ internal static class Program
 						?? throw new ArgumentException("Expected: -client <host:port>");
 					break;
 
+				case "-initdb":
+					initialiseDatabase = true;
+					break;
+
+				case "-console":
+					break;
+
 				default:
 					throw new ArgumentException(
-						$"Unknown argument '{args[i]}'. Expected -server <port> and/or -client <host:port>.");
+						$"Unknown argument '{args[i]}'. Expected -server <port>, -client <host:port>, -initdb, or -console.");
 			}
 		}
 
 		bool runServer = serverSpecified || clientPeer is null;
-		return new StartupMode(runServer, serverPort, clientPeer);
+		return new StartupMode(runServer, serverPort, clientPeer, initialiseDatabase);
 	}
 
-	private sealed record StartupMode(bool RunServer, int ServerPort, PeerAddress? ClientPeer);
+	private sealed record StartupMode(bool RunServer, int ServerPort, PeerAddress? ClientPeer, bool InitialiseDatabase);
 
-	private static ILoggerFactory CreateLoggerFactory()
+	private static ILoggerFactory CreateLoggerFactory(bool enableConsole)
 	{
 		IConfigurationRoot configuration = new ConfigurationBuilder()
 			.SetBasePath(AppContext.BaseDirectory)
@@ -126,11 +141,14 @@ internal static class Program
 		return LoggerFactory.Create(builder =>
 		{
 			builder.AddConfiguration(configuration.GetSection("Logging"));
-			builder.AddSimpleConsole(options =>
+			if (enableConsole)
 			{
-				options.SingleLine = true;
-				options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
-			});
+				builder.AddSimpleConsole(options =>
+				{
+					options.SingleLine = true;
+					options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+				});
+			}
 			builder.AddProvider(new TimestampedFileLoggerProvider(logFilePath));
 		});
 	}

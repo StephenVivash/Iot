@@ -2,6 +2,27 @@ namespace Iot.Data.Models;
 
 public sealed class Point
 {
+    public Point()
+    {
+    }
+
+    public Point(int id, int deviceId, string name, string description, ePointType typeId, string address)
+    {
+        Id = id;
+        DeviceId = deviceId;
+        Name = name;
+        Description = description;
+        TypeId = typeId;
+        Address = address;
+        Status = string.Empty;
+        RawStatus = 0;
+        Status0 = string.Empty;
+        Status1 = string.Empty;
+        Scale = 1;
+        Units = string.Empty;
+        TimeStamp = DateTime.UtcNow;
+    }
+
     public int Id { get; set; }
 
     public int DeviceId { get; set; }
