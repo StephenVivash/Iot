@@ -59,11 +59,12 @@ internal static class Program
 			List<IPeerServerLoopTask> serverLoopTasks =
 			[
 				new ServerHeartbeatTask(logger),
-				new ServerDataTask(logger),
 			];
 
 			if (basePath.StartsWith("/home"))
 				serverLoopTasks.Add(new ServerGpioTask(logger));
+			else
+				serverLoopTasks.Add(new ServerDataTask(logger));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
 				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
