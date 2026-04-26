@@ -52,26 +52,6 @@ namespace Iot.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.InsertData(
-                table: "Groups",
-                columns: new[] { "Id", "Description", "Name" },
-                values: new object[,]
-                {
-                    { 1, "Points used to monitor and control plant room equipment", "Plant Room" },
-                    { 2, "Wireless sensor points reported through the LoRa gateway", "Remote Sensors" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "GroupPoints",
-                columns: new[] { "Id", "GroupId", "PointId" },
-                values: new object[,]
-                {
-                    { 1, 1, 1 },
-                    { 2, 1, 2 },
-                    { 3, 1, 4 },
-                    { 4, 2, 3 }
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_GroupPoints_GroupId_PointId",
                 table: "GroupPoints",

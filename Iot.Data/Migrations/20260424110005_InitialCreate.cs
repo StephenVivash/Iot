@@ -58,28 +58,6 @@ namespace Iot.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.InsertData(
-                table: "Devices",
-                columns: new[] { "Id", "Description", "Name", "ParentDeviceId", "Status", "TypeId" },
-                values: new object[,]
-                {
-                    { 1, "Primary network server for the demo site", "Main NET Server", 0, "Online", 0 },
-                    { 2, "Local nano controller handling plant room IO", "Nano Controller 1", 1, "Online", 1 },
-                    { 3, "Wireless LoRa gateway for remote sensors", "LoRa Gateway", 1, "Warning", 2 },
-                    { 4, "Client display for local operators", "Operator Panel", 2, "Online", 3 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Points",
-                columns: new[] { "Id", "Address", "Description", "DeviceId", "Name", "RawStatus", "Scale", "Status", "Status0", "Status1", "TimeStamp", "TypeId", "Units" },
-                values: new object[,]
-                {
-                    { 1, "DI:1", "Digital input showing the pump run state", 2, "Pump Run Feedback", 1.0, 1.0, "On", "Stopped", "Running", new DateTime(2026, 4, 24, 8, 0, 0, 0, DateTimeKind.Utc), 0, "" },
-                    { 2, "DO:1", "Digital output command for pump start", 2, "Pump Command", 1.0, 1.0, "On", "Off", "On", new DateTime(2026, 4, 24, 8, 0, 5, 0, DateTimeKind.Utc), 1, "" },
-                    { 3, "AI:1", "Analog tank level from remote sensor", 3, "Tank Level", 684.0, 0.10000000000000001, "68.4", "Low", "High", new DateTime(2026, 4, 24, 8, 1, 0, 0, DateTimeKind.Utc), 2, "%" },
-                    { 4, "AO:1", "Analog output controlling valve opening", 2, "Valve Position", 450.0, 0.10000000000000001, "45.0", "Closed", "Open", new DateTime(2026, 4, 24, 8, 1, 30, 0, DateTimeKind.Utc), 3, "%" }
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Points_DeviceId",
                 table: "Points",

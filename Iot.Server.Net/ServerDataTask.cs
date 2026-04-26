@@ -24,6 +24,7 @@ internal sealed class ServerDataTask : IPeerServerLoopTask
 		await using var dbContext = context.Database.CreateDbContext();
 		var points = await dbContext.Points
 			.AsNoTracking()
+			.Where(point => point.DeviceId == 2)
 			.OrderBy(point => point.Id)
 			.Select(point => new
 			{
