@@ -1,18 +1,26 @@
-using System.Net;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using PeerJsonSockets;
+using System.Data;
+using System.Net;
+
+using Iot.Data;
 using Iot.Server.Net;
+using PeerJsonSockets;
 
 internal static class Program
 {
 	private const int DefaultPort = 5050;
+	private static ILogger logger = null;
+
+	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
+	//private const string basePath = @"/home/pi/iot";
 
 	private static async Task Main(string[] args)
 	{
 		using ILoggerFactory loggerFactory = CreateLoggerFactory();
 
-		ILogger logger = loggerFactory.CreateLogger("Iot.Server.Net");
+		logger = loggerFactory.CreateLogger("Iot.Server.Net");
 		StartupMode startupMode;
 		try
 		{
@@ -35,14 +43,23 @@ internal static class Program
 		PeerRuntimeOptions options = new(Environment.MachineName);
 		PeerConnectionRegistry connectionRegistry = new();
 		PeerConnectionService connectionService = new(logger);
+		IotDatabase database = new(Path.Combine(basePath, "data", "Iot.Data.db"));
 		logger.LogWarning("Host name: {PeerName}", options.PeerName);
 
 		List<Task> tasks = [];
 		if (startupMode.RunServer)
 		{
+			List<IPeerServerLoopTask> serverLoopTasks =
+			[
+				new ServerHeartbeatTask(logger),
+				new ServerDataTask(logger),
+			];
+
+			if (basePath.StartsWith("/home"))
+				serverLoopTasks.Add(new ServerGpioTask(logger));
+
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
-				options, connectionRegistry, connectionService,
-				logger);
+				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));
@@ -51,7 +68,7 @@ internal static class Program
 		if (startupMode.ClientPeer is not null)
 		{
 			PeerClientService clientService = new(options, connectionRegistry,
-				connectionService, logger);
+				connectionService, logger, database);
 			tasks.Add(clientService.RunAsync(startupMode.ClientPeer, shutdown.Token));
 		}
 
@@ -70,18 +87,14 @@ internal static class Program
 			{
 				case "-server":
 					if (++i >= args.Length || !int.TryParse(args[i], out serverPort))
-					{
 						throw new ArgumentException("Expected: -server <port>");
-					}
 
 					serverSpecified = true;
 					break;
 
 				case "-client":
 					if (++i >= args.Length)
-					{
 						throw new ArgumentException("Expected: -client <host:port>");
-					}
 
 					clientPeer = PeerAddressParser.Parse(args[i], logger)
 						?? throw new ArgumentException("Expected: -client <host:port>");
@@ -108,7 +121,7 @@ internal static class Program
 
 		string logDirectory = configuration["FileLogging:Directory"] ?? "logs";
 		string logFileName = $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log";
-		string logFilePath = Path.Combine(AppContext.BaseDirectory, logDirectory, logFileName);
+		string logFilePath = Path.Combine(basePath, logDirectory, logFileName);
 
 		return LoggerFactory.Create(builder =>
 		{
@@ -121,4 +134,43 @@ internal static class Program
 			builder.AddProvider(new TimestampedFileLoggerProvider(logFilePath));
 		});
 	}
+
+	/*
+	private static void DataTest()
+	{
+		DatabasePaths.Set(Path.Combine(basePath, "data", "Iot.Data.db"));
+		using var dbContext = IotDataStore.CreateMigratedDbContext();
+
+		var devices = dbContext.Devices
+			.AsNoTracking()
+			.Include(device => device.Points)
+			.OrderBy(device => device.Id)
+			.ToList();
+		var groups = dbContext.Groups
+			.AsNoTracking()
+			.Include(group => group.GroupPoints)
+			.ThenInclude(groupPoint => groupPoint.Point)
+			.OrderBy(group => group.Id)
+			.ToList();
+
+		logger.LogInformation($"Database: {DatabasePaths.GetConnectionString()}");
+		logger.LogInformation($"Devices: {devices.Count}");
+		logger.LogInformation($"Points: {dbContext.Points.Count()}");
+		logger.LogInformation($"Groups: {groups.Count}");
+		logger.LogInformation($"GroupPoints: {dbContext.GroupPoints.Count()}");
+
+		foreach (var device in devices)
+		{
+			logger.LogInformation($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
+			foreach (var point in device.Points.OrderBy(point => point.Id))
+				logger.LogInformation($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
+		}
+		foreach (var group in groups)
+		{
+			logger.LogInformation($"Group #{group.Id} | {group.Name}");
+			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
+				logger.LogInformation($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
+		}
+	}
+	*/
 }

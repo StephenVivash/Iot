@@ -72,6 +72,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\Iot.Data\Iot.Data.csproj" />
 		<ProjectReference Include="..\PeerJsonSockets\PeerJsonSockets.csproj" />
 	</ItemGroup>
 

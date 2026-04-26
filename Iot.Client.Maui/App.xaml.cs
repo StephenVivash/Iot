@@ -1,20 +1,20 @@
-using Iot.Client.Maui.Services;
+using Iot.Client.Maui.Pages;
 
 namespace Iot.Client.Maui;
 
 public partial class App : Application
 {
-	private readonly AppShell _appShell;
-
-	public App(AppShell appShell, IotClientLoopService clientLoopService)
+	public App()
 	{
 		InitializeComponent();
-		_appShell = appShell;
-		clientLoopService.Start();
 	}
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(_appShell);
+		MainPage mainPage = new();
+		Window window = new(new AppShell(mainPage));
+		window.Destroying += (_, _) => mainPage.DisposeRuntime();
+
+		return window;
 	}
 }

@@ -17,6 +17,10 @@ internal sealed class LoopTaskScheduler<TContext>
 		TimeSpan interval,
 		Func<TContext, CancellationToken, Task> executeAsync)
 	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(name);
+		ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(interval, TimeSpan.Zero);
+		ArgumentNullException.ThrowIfNull(executeAsync);
+
 		_tasks.Add(new ScheduledLoopTask<TContext>(name, interval, executeAsync, _logger));
 	}
 

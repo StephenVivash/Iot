@@ -39,8 +39,12 @@ public sealed class PeerConnectionService
 			RememberPeerName(peer, peerName);
 		}
 
-		_logger.LogInformation("{PeerRole} received {MessageType} from {RemotePeer}",
-			role, message.Type, GetRemoteDisplayName(peer));
+		_logger.LogDebug(
+			"{PeerRole} received {MessageType} from {RemotePeer}. Payload: {Payload}",
+			role,
+			message.Type,
+			GetRemoteDisplayName(peer),
+			message.Payload.GetRawText());
 
 		return message;
 	}
@@ -48,8 +52,28 @@ public sealed class PeerConnectionService
 	internal Task SendAndLogAsync<TPayload>(
 		PeerConnection connection,
 		string messageType,
-		TPayload payload) =>
-		SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, connection.CancellationToken);
+		TPayload payload,
+		CancellationToken cancellationToken = default)
+	{
+		if (!cancellationToken.CanBeCanceled)
+		{
+			return SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, connection.CancellationToken);
+		}
+
+		return SendAndLogWithLinkedCancellationAsync(connection, messageType, payload, cancellationToken);
+	}
+
+	private async Task SendAndLogWithLinkedCancellationAsync<TPayload>(
+		PeerConnection connection,
+		string messageType,
+		TPayload payload,
+		CancellationToken cancellationToken)
+	{
+		using CancellationTokenSource linkedCancellation =
+			CancellationTokenSource.CreateLinkedTokenSource(connection.CancellationToken, cancellationToken);
+
+		await SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, linkedCancellation.Token);
+	}
 
 	internal async Task SendAndLogAsync<TPayload>(
 		PeerRole role,
@@ -59,8 +83,12 @@ public sealed class PeerConnectionService
 		CancellationToken cancellationToken)
 	{
 		await peer.SendAsync(messageType, payload, cancellationToken);
-		_logger.LogInformation("{PeerRole} sent {MessageType} to {RemotePeer}",
-			role, messageType, GetRemoteDisplayName(peer));
+		_logger.LogDebug(
+			"{PeerRole} sent {MessageType} to {RemotePeer}. Payload: {Payload}",
+			role,
+			messageType,
+			GetRemoteDisplayName(peer),
+			JsonSerializer.Serialize(payload, JsonSocketPeer.SerializerOptions));
 	}
 
 	internal string GetRemoteDisplayName(PeerConnection connection) => connection.RemoteDisplayName;
