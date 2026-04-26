@@ -12,17 +12,17 @@ namespace Iot.Server.Net;
 
 internal sealed class ServerGpioTask : IPeerServerLoopTask
 {
-	private const int DeviceId = 1;
-
 	private readonly ILogger _logger;
+	private readonly int _deviceId;
 	private readonly Dictionary<int, GpioPoint> _points = [];
 	private GpioController? _gpioController;
 	private IotDatabase? _database;
 	private bool _initialiseGpioPointsAttempted;
 
-	public ServerGpioTask(ILogger logger)
+	public ServerGpioTask(ILogger logger, int deviceId)
 	{
 		_logger = logger;
+		_deviceId = deviceId;
 		InitialiseGpioController();
 	}
 
@@ -35,11 +35,11 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		try
 		{
 			_gpioController = new GpioController();
-			_logger.LogInformation("Initialised GPIO controller.");
+			_logger.LogInformation("Server initialised GPIO controller.");
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "GPIO controller is not available on this device.");
+			_logger.LogWarning(ex, "Server GPIO controller is not available on this device.");
 			_gpioController = null;
 		}
 	}
@@ -54,14 +54,14 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		_initialiseGpioPointsAttempted = true;
 		if (_database is null)
 		{
-			_logger.LogWarning("GPIO points cannot be initialised before the database is available.");
+			_logger.LogWarning("Server GPIO points cannot be initialised before the database is available.");
 			return;
 		}
 
 		using AppDbContext dbContext = _database.CreateDbContext();
 		var points = dbContext.Points
 			.AsNoTracking()
-			.Where(point => point.DeviceId == DeviceId)
+			.Where(point => point.DeviceId == _deviceId)
 			.OrderBy(point => point.Id)
 			.Select(point => new
 			{
@@ -93,16 +93,12 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 			}
 			catch (Exception ex)
 			{
-				_logger.LogWarning(
-					ex,
-					"GPIO point {PointId} ({PointName}) could not be initialised from address '{PointAddress}'.",
-					point.Id,
-					point.Name,
-					point.Address);
+				_logger.LogWarning(ex, "Server GPIO point {PointId} ({PointName}) could not be initialised from address '{PointAddress}'.",
+					point.Id, point.Name, point.Address);
 			}
 		}
 
-		_logger.LogInformation("Initialised {GpioPointCount} GPIO points for device {DeviceId}.", _points.Count, DeviceId);
+		_logger.LogInformation("Server initialised {GpioPointCount} GPIO points for device {DeviceId}.", _points.Count, _deviceId);
 	}
 
 	public async Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
@@ -110,15 +106,28 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		_database ??= context.Database;
 		InitialiseGpioPoints();
 
+		if (_points.Count == 0)
+		{
+			_logger.LogInformation("Server GPIO has no initialised points to poll.");
+			return;
+		}
+
+		if (context.ConnectedPeerCount == 0)
+		{
+			_logger.LogInformation("Server GPIO polled {GpioPointCount} points but has no connected peers.", _points.Count);
+			return;
+		}
+
 		foreach (GpioPoint point in _points.Values.OrderBy(point => point.Id))
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
 			string status = PollPoint(point);
-			await context.SendToConnectedClientsAsync(
-				PeerMessages.PointStatusType,
-				PeerMessages.CreatePointStatus(point.Id, status),
-				cancellationToken);
+			_logger.LogInformation("Server GPIO sending point status to ({ConnectedClientCount} clients, {ConnectedServerCount} servers). {PointName} ({PointId}): {Status}.",
+				context.ConnectedClientCount, context.ConnectedServerCount, point.Name, point.Id, status);
+
+			await context.SendToConnectedPeersAsync(PeerMessages.PointStatusType,
+				PeerMessages.CreatePointStatus(point.Id, status), cancellationToken);
 		}
 	}
 
@@ -147,11 +156,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 				break;
 
 			default:
-				_logger.LogDebug(
-					"GPIO point {PointId} ({PointName}) uses unsupported point type {PointType}; the current status will be forwarded.",
-					point.Id,
-					point.Name,
-					point.TypeId);
+				_logger.LogError("Server GPIO point {PointId} ({PointName}) uses unsupported point type {PointType}.",
+					point.Id, point.Name, point.TypeId);
 				break;
 		}
 	}
@@ -165,7 +171,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 
 		if (!TryReadPin(point.Address, out int pinNumber))
 		{
-			_logger.LogWarning("GPIO point {PointId} ({PointName}) has invalid GPIO pin address '{PointAddress}'.", point.Id, point.Name, point.Address);
+			_logger.LogWarning("Server GPIO point {PointId} ({PointName}) has invalid GPIO pin address '{PointAddress}'.", point.Id, point.Name, point.Address);
 			return;
 		}
 
@@ -210,7 +216,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 
 		if (channel < 0)
 		{
-			_logger.LogWarning("PWM point {PointId} ({PointName}) has invalid PWM address '{PointAddress}'.", point.Id, point.Name, point.Address);
+			_logger.LogWarning("Server PWM point {PointId} ({PointName}) has invalid PWM address '{PointAddress}'.", point.Id, point.Name, point.Address);
 			return;
 		}
 
@@ -220,7 +226,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "PWM point {PointId} ({PointName}) could not open chip {PwmChip}, channel {PwmChannel}.", point.Id, point.Name, chip, channel);
+			_logger.LogWarning(ex, "Server PWM point {PointId} ({PointName}) could not open chip {PwmChip}, channel {PwmChannel}.", point.Id, point.Name, chip, channel);
 		}
 	}
 
@@ -232,7 +238,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 			!int.TryParse(dioValue, out int dioPin) ||
 			!int.TryParse(clkValue, out int clkPin))
 		{
-			_logger.LogWarning("TM1637 point {PointId} ({PointName}) has invalid address '{PointAddress}'.", point.Id, point.Name, point.Address);
+			_logger.LogWarning("Server TM1637 point {PointId} ({PointName}) has invalid address '{PointAddress}'.", point.Id, point.Name, point.Address);
 			return;
 		}
 
@@ -251,7 +257,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "I2C point {PointId} ({PointName}) could not open bus {I2cBus}, address 0x{I2cAddress:X2}.", point.Id, point.Name, busId, deviceAddress);
+			_logger.LogWarning(ex, "Server I2C point {PointId} ({PointName}) could not open bus {I2cBus}, address 0x{I2cAddress:X2}.", point.Id, point.Name, busId, deviceAddress);
 		}
 	}
 
@@ -277,7 +283,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "GPIO point {PointId} ({PointName}) poll failed.", point.Id, point.Name);
+			_logger.LogWarning(ex, "Server GPIO point {PointId} ({PointName}) poll failed.", point.Id, point.Name);
 			return point.CurrentStatus;
 		}
 	}
@@ -302,14 +308,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 
 	private sealed class GpioPoint
 	{
-		public GpioPoint(
-			int id,
-			string name,
-			ePointType typeId,
-			string address,
-			string currentStatus,
-			string status0,
-			string status1)
+		public GpioPoint(int id, string name, ePointType typeId, string address, string currentStatus, string status0, string status1)
 		{
 			Id = id;
 			Name = name;

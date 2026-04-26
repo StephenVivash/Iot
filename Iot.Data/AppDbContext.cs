@@ -114,7 +114,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 			new(23, 7, "Shift Bit0", "Shift Bit0 Test", ePointType.eDigitalInput, "PID=22,BIT=0") { Status = "", Status0 = "Off", Status1 = "On" },
 			new(24, 7, "Shift Bit5", "Shift Bit5 Test", ePointType.eDigitalInput, "PID=22,BIT=5") { Status = "", Status0 = "Off", Status1 = "On" },
 			new(25, 2, "Pi31 Led1", "Pi31 Led1 Test", ePointType.eDigitalOutput, "18") { Status0 = "Off", Status1 = "On" },
-			new(26, 3, "Piz21 Led1", "Piz21 Led1 Test", ePointType.eDigitalOutput, "18") { Status0 = "Off", Status1 = "On" }
+			new(26, 3, "Piz21 Led1", "Piz21 Led1 Test", ePointType.eDigitalOutput, "18") { Status0 = "Off", Status1 = "On" },
+
+			new(27, 1, "Pi51 Light1S", "Pi51 Light1S Test", ePointType.eDigitalInput, "19") { Status0 = "Off", Status1 = "On" },
+			new(28, 1, "Pi51 Light1C", "Pi51 Light1C Test", ePointType.eDigitalOutput, "20") { Status0 = "Off", Status1 = "On" },
 		];
 
 		Points.AddRange(points);
@@ -132,7 +135,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 		List<GroupPoint> groupPoints =
 		[
 			new(1, 1, 1),
-			new(2, 1, 5),
+			new(2, 1, 3),
 			new(3, 2, 8),
 			new(4, 2, 9)
 		];

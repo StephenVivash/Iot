@@ -9,10 +9,12 @@ namespace Iot.Server.Net;
 internal sealed class ServerDataTask : IPeerServerLoopTask
 {
 	private readonly ILogger _logger;
+	private readonly int _deviceId;
 
-	public ServerDataTask(ILogger logger)
+	public ServerDataTask(ILogger logger, int deviceId)
 	{
 		_logger = logger;
+		_deviceId = deviceId;
 	}
 
 	public string Name => "server.data";
@@ -24,7 +26,7 @@ internal sealed class ServerDataTask : IPeerServerLoopTask
 		await using var dbContext = context.Database.CreateDbContext();
 		var points = await dbContext.Points
 			.AsNoTracking()
-			.Where(point => point.DeviceId == 2)
+			.Where(point => point.DeviceId == _deviceId)
 			.OrderBy(point => point.Id)
 			.Select(point => new
 			{

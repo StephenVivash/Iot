@@ -1,5 +1,6 @@
 using System.Net;
 using Iot.Data;
+using Iot.Data.Models;
 using Microsoft.Extensions.Logging;
 
 namespace PeerJsonSockets;
@@ -115,16 +116,54 @@ public sealed class PeerServerService
 
 	private async Task ProcessAcceptedClientMessageAsync(PeerConnection connection, JsonPeerMessage message)
 	{
-		if (message.Type != PeerMessages.PollType)
+		if (message.Type == PeerMessages.PollType)
 		{
+			Poll? poll = JsonSocketPeer.ReadPayload<Poll>(message);
+			string pollId = poll?.PollId ?? message.Id;
+
+			await _connectionService.SendAndLogAsync(connection, PeerMessages.PollAckType,
+				PeerMessages.CreatePollAck(_options.PeerName, pollId));
 			return;
 		}
 
-		Poll? poll = JsonSocketPeer.ReadPayload<Poll>(message);
-		string pollId = poll?.PollId ?? message.Id;
+		if (message.Type == PeerMessages.PointStatusType)
+		{
+			await ProcessPointStatusAsync(connection, message);
+			return;
+		}
 
-		await _connectionService.SendAndLogAsync(connection, PeerMessages.PollAckType,
-			PeerMessages.CreatePollAck(_options.PeerName, pollId));
+		_logger.LogDebug("Server ignored {MessageType} from {RemotePeer}.", message.Type, connection.RemoteDisplayName);
+	}
+
+	private async Task ProcessPointStatusAsync(PeerConnection connection, JsonPeerMessage message)
+	{
+		PointStatus? pointStatus = JsonSocketPeer.ReadPayload<PointStatus>(message);
+		if (pointStatus is null)
+		{
+			_logger.LogWarning("Server received invalid point status from {RemotePeer}.",
+				connection.RemoteDisplayName);
+			return;
+		}
+
+		await using AppDbContext dbContext = _database.CreateDbContext();
+		Point? point = await dbContext.Points.FindAsync([pointStatus.Id], connection.CancellationToken);
+		if (point is null)
+		{
+			_logger.LogWarning("Server received point status from {RemotePeer} for unknown point {PointId}: {Status}.",
+				connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
+			return;
+		}
+
+		point.Status = pointStatus.Status;
+		point.TimeStamp = DateTime.UtcNow;
+		await dbContext.SaveChangesAsync(connection.CancellationToken);
+
+		string units = string.IsNullOrWhiteSpace(point.Units)
+			? string.Empty
+			: $" {point.Units}";
+
+		_logger.LogInformation("Server processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
+			connection.RemoteDisplayName, point.Name, point.Id, point.Status, units);
 	}
 
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)

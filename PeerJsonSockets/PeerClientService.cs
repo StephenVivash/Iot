@@ -201,7 +201,7 @@ public sealed class PeerClientService
 
 	private Task RunClientSummaryAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation("Client summary for {RemotePeer}. Sent polls: {SentPollCount}. Processed messages: {ProcessedMessageCount}. Queued messages: {QueuedMessageCount}.",
+		_logger.LogInformation("Client summary for {RemotePeer}. Messages - Polls: {SentPollCount}. Processed: {ProcessedMessageCount}. Queued: {QueuedMessageCount}.",
 			context.RemoteDisplayName, context.SentPollCount, context.ProcessedMessageCount, context.QueuedMessageCount);
 		return Task.CompletedTask;
 	}
