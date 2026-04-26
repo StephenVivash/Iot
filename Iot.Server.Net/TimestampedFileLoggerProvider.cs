@@ -12,9 +12,7 @@ internal sealed class TimestampedFileLoggerProvider : ILoggerProvider
 	{
 		string? directory = Path.GetDirectoryName(logFilePath);
 		if (!string.IsNullOrWhiteSpace(directory))
-		{
 			Directory.CreateDirectory(directory);
-		}
 
 		FileStream stream = new(logFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
 		_writer = new StreamWriter(stream)

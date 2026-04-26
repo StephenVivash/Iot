@@ -5,6 +5,7 @@ namespace Iot.Data.Test;
 
 internal static class Program
 {
+	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
 	private static int Main(string[] args)
 	{
 		DataTest();
@@ -13,7 +14,8 @@ internal static class Program
 
 	private static void DataTest()
 	{
-		using var dbContext = IotDataStore.CreateMigratedDbContext();
+		using var dbContext = IotDataStore.CreateDbContext(
+			Path.Combine(basePath, "data", "Iot.Data.db"));
 
 		var devices = dbContext.Devices
 			.AsNoTracking()
@@ -27,7 +29,6 @@ internal static class Program
 			.OrderBy(group => group.Id)
 			.ToList();
 
-		Console.WriteLine($"Database path: {DatabasePaths.GetDatabasePath()}");
 		Console.WriteLine($"Devices: {devices.Count}");
 		Console.WriteLine($"Points: {dbContext.Points.Count()}");
 		Console.WriteLine($"Groups: {groups.Count}");
@@ -37,23 +38,14 @@ internal static class Program
 		foreach (var device in devices)
 		{
 			Console.WriteLine($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
-
 			foreach (var point in device.Points.OrderBy(point => point.Id))
-			{
 				Console.WriteLine($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
-			}
 		}
-
-		Console.WriteLine();
-
 		foreach (var group in groups)
 		{
 			Console.WriteLine($"Group #{group.Id} | {group.Name}");
-
 			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
-			{
 				Console.WriteLine($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
-			}
 		}
 	}
 }

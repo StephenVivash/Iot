@@ -1,12 +1,18 @@
 using Iot.Client.Maui.Logging;
 using Iot.Data;
+using Iot.Client.Maui.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using PeerJsonSockets;
 
 namespace Iot.Client.Maui.Pages;
 
 public partial class MainPage : ContentPage
 {
 	private readonly MainPageLogSink _logSink;
+	private readonly ILoggerFactory _loggerFactory;
+	private readonly IotClientLoopService _clientLoopService;
+	private bool _isDisposingRuntime;
 
 	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
 	//private const string basePath = @"/home/pi/iot";
@@ -15,16 +21,53 @@ public partial class MainPage : ContentPage
 	private Microsoft.UI.Xaml.Controls.TextBox? _configuredTextBox;
 #endif
 
-	public MainPage(MainPageLogSink logSink)
+	public MainPage()
 	{
 		InitializeComponent();
 		ConfigureEditors();
-		_logSink = logSink;
+		_logSink = new MainPageLogSink();
+		_loggerFactory = CreateLoggerFactory(_logSink);
+		_clientLoopService = CreateClientLoopService(_loggerFactory);
 		edtOutput.Text = _logSink.GetText();
 		_logSink.LineAppended += OnLogLineAppended;
+		_clientLoopService.Start();
 		DataTest();
 	}
 
+	private static ILoggerFactory CreateLoggerFactory(MainPageLogSink logSink)
+	{
+		string logFilePath = Path.Combine(
+			basePath,
+			"logs",
+			$"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
+
+		return LoggerFactory.Create(logging =>
+		{
+			logging.SetMinimumLevel(LogLevel.Information);
+			logging.AddFilter("Microsoft", LogLevel.Warning);
+			logging.AddProvider(new MainPageLoggerProvider(logSink));
+			logging.AddProvider(new TimestampedFileLoggerProvider(logFilePath));
+#if DEBUG
+			logging.AddDebug();
+#endif
+		});
+	}
+
+	private static IotClientLoopService CreateClientLoopService(ILoggerFactory loggerFactory)
+	{
+		PeerRuntimeOptions options = new(Environment.MachineName);
+		PeerConnectionRegistry connectionRegistry = new();
+		ILogger logger = loggerFactory.CreateLogger("Iot.Client.Maui");
+		PeerConnectionService connectionService = new(logger);
+		IPeerClientLoopTask[] loopTasks =
+		[
+			new MauiClientConnectionLogTask(loggerFactory.CreateLogger<MauiClientConnectionLogTask>())
+		];
+
+		PeerClientService peerClientService = new(options, connectionRegistry, connectionService, logger, loopTasks);
+
+		return new IotClientLoopService(options, peerClientService, loggerFactory);
+	}
 
 	private void ConfigureEditors()
 	{
@@ -79,14 +122,45 @@ public partial class MainPage : ContentPage
 
 	private void OnLogLineAppended(string line)
 	{
+		if (_isDisposingRuntime)
+		{
+			return;
+		}
+
 		MainThread.BeginInvokeOnMainThread(async () =>
 		{
-			edtOutput.Text = string.IsNullOrEmpty(edtOutput.Text)
-				? line
-				: $"{edtOutput.Text}{Environment.NewLine}{line}";
+			try
+			{
+				if (_isDisposingRuntime)
+				{
+					return;
+				}
 
-			await scrOutput.ScrollToAsync(0, double.MaxValue, false);
+				edtOutput.Text = string.IsNullOrEmpty(edtOutput.Text)
+					? line
+					: $"{edtOutput.Text}{Environment.NewLine}{line}";
+
+				await scrOutput.ScrollToAsync(0, double.MaxValue, false);
+			}
+			catch (ObjectDisposedException)
+			{
+			}
+			catch (InvalidOperationException) when (_isDisposingRuntime)
+			{
+			}
 		});
+	}
+
+	public void DisposeRuntime()
+	{
+		if (_isDisposingRuntime)
+		{
+			return;
+		}
+
+		_isDisposingRuntime = true;
+		_logSink.LineAppended -= OnLogLineAppended;
+		_clientLoopService.Stop();
 	}
 
 	private void OnMainPageSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -96,7 +170,9 @@ public partial class MainPage : ContentPage
 
 	private void DataTest()
 	{
-		using var dbContext = IotDataStore.CreateDbContext(Path.Combine(basePath, "data", "Iot.Data.db"));
+		ILogger logger = _loggerFactory.CreateLogger<MainPage>();
+		using var dbContext = IotDataStore.CreateDbContext(
+			Path.Combine(basePath, "data", "Iot.Data.db"));
 
 		var devices = dbContext.Devices
 			.AsNoTracking()
@@ -110,23 +186,26 @@ public partial class MainPage : ContentPage
 			.OrderBy(group => group.Id)
 			.ToList();
 
-		OnLogLineAppended($"Devices: {devices.Count}");
-		OnLogLineAppended($"Points: {dbContext.Points.Count()}");
-		OnLogLineAppended($"Groups: {groups.Count}");
-		OnLogLineAppended($"GroupPoints: {dbContext.GroupPoints.Count()}");
+		logger.LogInformation("Devices: {DeviceCount}", devices.Count);
+		logger.LogInformation("Points: {PointCount}", dbContext.Points.Count());
+		logger.LogInformation("Groups: {GroupCount}", groups.Count);
+		logger.LogInformation("GroupPoints: {GroupPointCount}", dbContext.GroupPoints.Count());
 
 		foreach (var device in devices)
 		{
-			OnLogLineAppended($"Device #{device.Id} | Parent {device.ParentDeviceId} | {device.Name} | Type {device.TypeId} | {device.Status}");
+			logger.LogInformation("Device #{DeviceId} | Parent {ParentDeviceId} | {DeviceName} | Type {DeviceTypeId} | {DeviceStatus}",
+				device.Id, device.ParentDeviceId, device.Name, device.TypeId, device.Status);
 			foreach (var point in device.Points.OrderBy(point => point.Id))
-				OnLogLineAppended($"  - {point.Name} | {point.TypeId} | {point.Status} {point.Units}".TrimEnd());
+				logger.LogInformation("  - {PointName} | {PointTypeId} | {PointStatus} {PointUnits}",
+					point.Name,	point.TypeId, point.Status, point.Units);
 		}
 
 		foreach (var group in groups)
 		{
-			OnLogLineAppended($"Group #{group.Id} | {group.Name}");
+			logger.LogInformation("Group #{GroupId} | {GroupName}", group.Id, group.Name);
 			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
-				OnLogLineAppended($"  - Point #{groupPoint.PointId} | {groupPoint.Point.Name}");
+				logger.LogInformation("  - Point #{PointId} | {PointName}",
+					groupPoint.PointId,	groupPoint.Point.Name);
 		}
 	}
 }

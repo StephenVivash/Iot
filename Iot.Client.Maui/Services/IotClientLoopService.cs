@@ -71,6 +71,49 @@ public sealed class IotClientLoopService : IDisposable
 		}
 	}
 
+	public void Stop()
+	{
+		Task? runTask;
+		CancellationTokenSource? shutdown;
+
+		lock (_lock)
+		{
+			runTask = _runTask;
+			shutdown = _shutdown;
+			_runTask = null;
+			_shutdown = null;
+		}
+
+		if (shutdown is null)
+		{
+			return;
+		}
+
+		shutdown.Cancel();
+		if (runTask is null)
+		{
+			shutdown.Dispose();
+			return;
+		}
+
+		_ = runTask.ContinueWith(
+			task =>
+			{
+				try
+				{
+					task.GetAwaiter().GetResult();
+				}
+				catch (OperationCanceledException)
+				{
+				}
+				finally
+				{
+					shutdown.Dispose();
+				}
+			},
+			TaskScheduler.Default);
+	}
+
 	private async Task RunAsync(CancellationToken cancellationToken)
 	{
 		_logger.LogWarning("Host name: {PeerName}", _options.PeerName);
