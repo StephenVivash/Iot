@@ -106,23 +106,66 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 			return;
 		}
 
-		if (context.ConnectedPeerCount == 0)
-		{
-			_logger.LogInformation("Server GPIO polled {GpioPointCount} points but has no connected peers.", _points.Count);
-			return;
-		}
-
+		List<PointStatus> changedStatuses = [];
 		foreach (GpioPoint point in _points.Values.OrderBy(point => point.Id))
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
 			string status = PollPoint(point);
-			_logger.LogInformation("Server GPIO sending point status to ({ConnectedClientCount} clients, {ConnectedServerCount} servers). {PointName} ({PointId}): {Status}.",
-				context.ConnectedClientCount, context.ConnectedServerCount, point.Name, point.Id, status);
+			if (string.Equals(point.CurrentStatus, status, StringComparison.Ordinal))
+				continue;
 
-			await context.SendToConnectedPeersAsync(PeerMessages.PointStatusType,
-				PeerMessages.CreatePointStatus(point.Id, status), cancellationToken);
+			_logger.LogInformation("Server GPIO point changed. {PointName} ({PointId}): {PreviousStatus} -> {Status}.",
+				point.Name, point.Id, point.CurrentStatus, status);
+
+			point.CurrentStatus = status;
+			changedStatuses.Add(PeerMessages.CreatePointStatus(point.Id, status));
 		}
+
+		if (changedStatuses.Count == 0)
+		{
+			_logger.LogDebug("Server GPIO polled {GpioPointCount} points with no status changes.", _points.Count);
+			return;
+		}
+
+		await SaveChangedStatusesAsync(changedStatuses, cancellationToken);
+
+		if (context.ConnectedPeerCount == 0)
+		{
+			_logger.LogInformation("Server GPIO updated {ChangedPointCount} changed points but has no connected peers.", changedStatuses.Count);
+			return;
+		}
+
+		foreach (PointStatus pointStatus in changedStatuses)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+
+			_logger.LogInformation("Server GPIO sending changed point status to ({ConnectedClientCount} clients, {ConnectedServerCount} servers). Point {PointId}: {Status}.",
+				context.ConnectedClientCount, context.ConnectedServerCount, pointStatus.Id, pointStatus.Status);
+
+			await context.SendToConnectedPeersAsync(PeerMessages.PointStatusType, pointStatus, cancellationToken);
+		}
+	}
+
+	private async Task SaveChangedStatusesAsync(IEnumerable<PointStatus> changedStatuses, CancellationToken cancellationToken)
+	{
+		await using AppDbContext dbContext = _database.CreateDbContext();
+
+		foreach (PointStatus pointStatus in changedStatuses)
+		{
+			Point? dbPoint = await dbContext.Points.FindAsync([pointStatus.Id], cancellationToken);
+			if (dbPoint is null)
+			{
+				_logger.LogWarning("Server GPIO could not update unknown point {PointId}: {Status}.",
+					pointStatus.Id, pointStatus.Status);
+				continue;
+			}
+
+			dbPoint.Status = pointStatus.Status;
+			dbPoint.TimeStamp = DateTime.UtcNow;
+		}
+
+		await dbContext.SaveChangesAsync(cancellationToken);
 	}
 
 	public async Task<PointStatus?> TryHandlePointControlAsync(PointControl pointControl, CancellationToken cancellationToken)
