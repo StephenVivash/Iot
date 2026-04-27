@@ -126,16 +126,17 @@ public sealed class PeerServerService
 			return;
 		}
 
-		if (message.Type == PeerMessages.PointStatusType)
-		{
-			await ProcessPointStatusAsync(connection, message);
-			return;
-		}
+		//if (message.Type == PeerMessages.PointStatusType)
+		//{
+		//	await ProcessPointStatusAsync(connection, message);
+		//	return;
+		//}
 
 		_logger.LogDebug("Server ignored {MessageType} from {RemotePeer}.", message.Type, connection.RemoteDisplayName);
 	}
 
-	private async Task ProcessPointStatusAsync(PeerConnection connection, JsonPeerMessage message)
+	/* 
+	ProcessPointStatusAsync(PeerConnection connection, JsonPeerMessage message)
 	{
 		PointStatus? pointStatus = JsonSocketPeer.ReadPayload<PointStatus>(message);
 		if (pointStatus is null)
@@ -165,7 +166,7 @@ public sealed class PeerServerService
 		_logger.LogInformation("Server processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
 			connection.RemoteDisplayName, point.Name, point.Id, point.Status, units);
 	}
-
+	*/
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)
 	{
 		LoopTaskScheduler<PeerServerLoopContext> scheduler = CreateServerLoopScheduler();

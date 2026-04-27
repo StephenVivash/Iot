@@ -64,8 +64,8 @@ internal static class Program
 
 			if (deviceId == 1)
 				serverLoopTasks.Add(new ServerGpioTask(logger, deviceId));
-			else
-				serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
+			//else
+			//	serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
 				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
