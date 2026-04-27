@@ -62,7 +62,7 @@ internal static class Program
 				new ServerHeartbeatTask(logger),
 			];
 
-			if (deviceId == 1)
+			if ((deviceId > 0) && (deviceId < 5))
 				serverLoopTasks.Add(new ServerGpioTask(logger, deviceId));
 			//else
 			//	serverLoopTasks.Add(new ServerDataTask(logger, deviceId));

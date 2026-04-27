@@ -253,6 +253,9 @@ public sealed class PeerClientService
 
 			_logger.LogInformation("Client processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
 				connection.RemoteDisplayName, point.Name, point.Id,	point.Status, units);
+
+			await RelayPointStatusToConnectedClientsAsync(connection, pointStatus);
+
 			return;
 		}
 
@@ -260,5 +263,38 @@ public sealed class PeerClientService
 			_logger.LogDebug("Client ignored poll from {RemotePeer}; poll acknowledgements are handled by server connections.", connection.RemoteDisplayName);
 
 		return;
+	}
+
+	private async Task RelayPointStatusToConnectedClientsAsync(PeerConnection sourceConnection, PointStatus pointStatus)
+	{
+		IReadOnlyCollection<PeerConnection> clientConnections = _connectionRegistry.GetByRole(PeerRole.Server);
+		if (clientConnections.Count == 0)
+			return;
+
+		_logger.LogInformation("Server relaying point status from {RemotePeer} to {ConnectedClientCount} connected clients.",
+			sourceConnection.RemoteDisplayName, clientConnections.Count);
+
+		foreach (PeerConnection clientConnection in clientConnections)
+		{
+			if (sourceConnection.CancellationToken.IsCancellationRequested)
+				return;
+
+			if (clientConnection.CancellationToken.IsCancellationRequested)
+				continue;
+
+			try
+			{
+				await _connectionService.SendAndLogAsync(clientConnection, PeerMessages.PointStatusType, pointStatus, sourceConnection.CancellationToken);
+			}
+			catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || clientConnection.CancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Server failed to relay point status to connected client {RemotePeer}.",
+					clientConnection.RemoteDisplayName);
+				clientConnection.Stop();
+			}
+		}
 	}
 }
