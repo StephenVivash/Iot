@@ -17,16 +17,16 @@ public sealed record PointStatus(int Id, string Status);
 public static class PeerMessages
 {
 	public const string HandshakeType = "handshake";
-	public const string AckType = "handshake.ack";
+	public const string HandshakeAckType = "handshake.ack";
 	public const string PollType = "poll";
 	public const string PollAckType = "poll.ack";
 	public const string StatusType = "peer.status";
 	public const string PointStatusType = "point.status";
 
-	public static Handshake CreateHello(string peerName) =>
-		new(peerName, "1.0", [HandshakeType, AckType, PollType, PollAckType, StatusType, PointStatusType]);
+	public static Handshake CreateHandshake(string peerName) =>
+		new(peerName, "1.0", [HandshakeType, HandshakeAckType, PollType, PollAckType, StatusType, PointStatusType]);
 
-	public static HandshakeAck CreateAck(string peerName) =>
+	public static HandshakeAck CreateHandshakeAck(string peerName) =>
 		new(peerName, Accepted: true, Message: "Handshake accepted.");
 
 	public static Poll CreatePoll(string peerName) =>

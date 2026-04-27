@@ -32,10 +32,7 @@ public sealed class PeerServerLoopContext
 			cancellationToken.ThrowIfCancellationRequested();
 
 			if (connection.CancellationToken.IsCancellationRequested)
-			{
 				continue;
-			}
-
 			await _connectionService.SendAndLogAsync(connection, messageType, payload, cancellationToken);
 		}
 	}
@@ -48,12 +45,8 @@ public sealed class PeerServerLoopContext
 		foreach (PeerConnection connection in _connectionRegistry.GetAll())
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-
 			if (connection.CancellationToken.IsCancellationRequested)
-			{
 				continue;
-			}
-
 			await _connectionService.SendAndLogAsync(connection, messageType, payload, cancellationToken);
 		}
 	}

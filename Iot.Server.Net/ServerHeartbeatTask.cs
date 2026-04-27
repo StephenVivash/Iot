@@ -18,10 +18,8 @@ internal sealed class ServerHeartbeatTask : IPeerServerLoopTask
 
 	public Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation(
-			"Server heartbeat task. Connected peers: {ConnectedPeerCount}. Connected clients: {ConnectedClientCount}.",
-			context.ConnectedPeerCount,
-			context.ConnectedClientCount);
+		_logger.LogInformation("Server heartbeat. Connected peers: {ConnectedPeerCount}. Connected clients: {ConnectedClientCount}.",
+			context.ConnectedPeerCount, context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
 }

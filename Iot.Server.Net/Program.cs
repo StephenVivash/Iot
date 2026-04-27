@@ -11,16 +11,15 @@ using PeerJsonSockets;
 internal static class Program
 {
 	private const int DefaultPort = 5050;
-	private static ILogger logger = null;
-
-	private static string basePath;
+	private static ILogger? logger;
+	private static string? basePath;
 
 	private static async Task Main(string[] args)
 	{
 		StartupMode startupMode;
 		try
 		{
-			startupMode = ParseStartupMode(args, logger);
+			startupMode = ParseStartupMode(args);
 		}
 		catch (ArgumentException ex)
 		{
@@ -85,7 +84,7 @@ internal static class Program
 		await Task.WhenAll(tasks);
 	}
 
-	private static StartupMode ParseStartupMode(string[] args, ILogger logger)
+	private static StartupMode ParseStartupMode(string[] args)
 	{
 		bool serverSpecified = false;
 		int serverPort = DefaultPort;

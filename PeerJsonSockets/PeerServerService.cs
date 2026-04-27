@@ -54,7 +54,7 @@ public sealed class PeerServerService
 			if (helloMessage?.Type == PeerMessages.HandshakeType)
 			{
 				await _connectionService.SendAndLogAsync(PeerRole.Server, peer,
-					PeerMessages.AckType, PeerMessages.CreateAck(_options.PeerName),
+					PeerMessages.HandshakeAckType, PeerMessages.CreateHandshakeAck(_options.PeerName),
 					cancellationToken);
 			}
 
@@ -200,14 +200,14 @@ public sealed class PeerServerService
 
 	private Task RunServerConnectionSummaryAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation("Server task connection summary. Connected clients: {ConnectedClientCount}.",
+		_logger.LogInformation("Server connection summary. Connected clients: {ConnectedClientCount}.",
 			context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
 
 	private Task RunServerMaintenanceAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogDebug("Server task maintenance. Connected clients: {ConnectedClientCount}.", context.ConnectedClientCount);
+		_logger.LogDebug("Server maintenance. Connected clients: {ConnectedClientCount}.", context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
 }

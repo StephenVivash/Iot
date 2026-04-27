@@ -115,7 +115,7 @@ public sealed class PeerClientService
 		_logger.LogWarning("Client connected to {RemotePeer}.", _connectionService.GetRemoteDisplayName(peer));
 
 		await _connectionService.SendAndLogAsync(PeerRole.Client, peer,
-			PeerMessages.HandshakeType,	PeerMessages.CreateHello(_options.PeerName),
+			PeerMessages.HandshakeType,	PeerMessages.CreateHandshake(_options.PeerName),
 			cancellationToken);
 		JsonPeerMessage? ackMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Client, peer, cancellationToken);
 		if (ackMessage is null)
