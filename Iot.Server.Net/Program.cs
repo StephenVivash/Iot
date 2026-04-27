@@ -45,6 +45,7 @@ internal static class Program
 		PeerConnectionRegistry connectionRegistry = new();
 		PeerConnectionService connectionService = new(logger);
 		IotDatabase database = new(Path.Combine(basePath, "data", "Iot.Data.db"));
+		List<IPeerPointControlHandler> pointControlHandlers = [];
 		if (startupMode.InitialiseDatabase)
 		{
 			await using AppDbContext dbContext = database.CreateDbContext();
@@ -63,12 +64,16 @@ internal static class Program
 			];
 
 			if ((deviceId > 0) && (deviceId < 5))
-				serverLoopTasks.Add(new ServerGpioTask(logger, deviceId));
+			{
+				ServerGpioTask serverGpioTask = new(logger, deviceId, database);
+				serverLoopTasks.Add(serverGpioTask);
+				pointControlHandlers.Add(serverGpioTask);
+			}
 			//else
 			//	serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
-				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
+				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks, pointControlHandlers);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));
@@ -77,7 +82,7 @@ internal static class Program
 		if (startupMode.ClientPeer is not null)
 		{
 			PeerClientService clientService = new(options, connectionRegistry,
-				connectionService, logger, database);
+				connectionService, logger, database, pointControlHandlers: pointControlHandlers);
 			tasks.Add(clientService.RunAsync(startupMode.ClientPeer, shutdown.Token));
 		}
 

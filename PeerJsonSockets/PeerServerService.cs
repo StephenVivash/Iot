@@ -12,6 +12,7 @@ public sealed class PeerServerService
 	private readonly PeerConnectionService _connectionService;
 	private readonly PeerConnectionRegistry _connectionRegistry;
 	private readonly IReadOnlyList<IPeerServerLoopTask> _loopTasks;
+	private readonly IReadOnlyList<IPeerPointControlHandler> _pointControlHandlers;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
 	private readonly IotDatabase _database;
@@ -24,7 +25,8 @@ public sealed class PeerServerService
 		PeerConnectionService connectionService,
 		ILogger logger,
 		IotDatabase database,
-		IEnumerable<IPeerServerLoopTask>? loopTasks = null)
+		IEnumerable<IPeerServerLoopTask>? loopTasks = null,
+		IEnumerable<IPeerPointControlHandler>? pointControlHandlers = null)
 	{
 		_listenAddress = listenAddress;
 		_listenPort = listenPort;
@@ -34,6 +36,7 @@ public sealed class PeerServerService
 		_logger = logger;
 		_database = database;
 		_loopTasks = loopTasks?.ToArray() ?? [];
+		_pointControlHandlers = pointControlHandlers?.ToArray() ?? [];
 	}
 
 	public async Task RunAsync(CancellationToken cancellationToken)
@@ -132,7 +135,49 @@ public sealed class PeerServerService
 			return;
 		}
 
+		if (message.Type == PeerMessages.PointControlType)
+		{
+			await ProcessPointControlAsync(connection, message);
+			return;
+		}
+
 		_logger.LogDebug("Server ignored {MessageType} from {RemotePeer}.", message.Type, connection.RemoteDisplayName);
+	}
+
+	private async Task ProcessPointControlAsync(PeerConnection connection, JsonPeerMessage message)
+	{
+		PointControl? pointControl = JsonSocketPeer.ReadPayload<PointControl>(message);
+		if (pointControl is null)
+		{
+			_logger.LogWarning("Server received invalid point control from {RemotePeer}.",
+				connection.RemoteDisplayName);
+			return;
+		}
+
+		PointStatus? pointStatus = await TryHandlePointControlAsync(pointControl, connection.CancellationToken);
+		if (pointStatus is not null)
+		{
+			_logger.LogInformation("Server handled point control from {RemotePeer}. Point {PointId}: {Status}.",
+				connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
+
+			await SendPointStatusToConnectedPeersAsync(pointStatus, connection.CancellationToken);
+			return;
+		}
+
+		await RelayPointControlToConnectedPeersAsync(connection, pointControl);
+	}
+
+	private async Task<PointStatus?> TryHandlePointControlAsync(PointControl pointControl, CancellationToken cancellationToken)
+	{
+		foreach (IPeerPointControlHandler pointControlHandler in _pointControlHandlers)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			PointStatus? pointStatus = await pointControlHandler.TryHandlePointControlAsync(pointControl, cancellationToken);
+			if (pointStatus is not null)
+				return pointStatus;
+		}
+
+		return null;
 	}
 
 	private async Task ProcessPointStatusAsync(PeerConnection connection, JsonPeerMessage message)
@@ -168,6 +213,9 @@ public sealed class PeerServerService
 		await RelayPointStatusToConnectedPeersAsync(connection, pointStatus);
 	}
 
+	private Task SendPointStatusToConnectedPeersAsync(PointStatus pointStatus, CancellationToken cancellationToken) =>
+		SendToConnectedPeersAsync(PeerMessages.PointStatusType, pointStatus, cancellationToken);
+
 	private async Task RelayPointStatusToConnectedPeersAsync(PeerConnection sourceConnection, PointStatus pointStatus)
 	{
 		PeerConnection[] peerConnections = _connectionRegistry.GetAll()
@@ -199,6 +247,74 @@ public sealed class PeerServerService
 			{
 				_logger.LogWarning(ex, "Server failed to relay point status to connected peer {RemotePeer}.",
 					peerConnection.RemoteDisplayName);
+				peerConnection.Stop();
+			}
+		}
+	}
+
+	private async Task RelayPointControlToConnectedPeersAsync(PeerConnection sourceConnection, PointControl pointControl)
+	{
+		PeerConnection[] peerConnections = _connectionRegistry.GetAll()
+			.Where(connection => connection.Id != sourceConnection.Id)
+			.ToArray();
+
+		if (peerConnections.Length == 0)
+		{
+			_logger.LogWarning("Server received point control from {RemotePeer} for point {PointId}, but it was not handled locally and no other peers are available.",
+				sourceConnection.RemoteDisplayName, pointControl.Id);
+			return;
+		}
+
+		_logger.LogInformation("Server relaying point control from {RemotePeer} to {ConnectedPeerCount} connected peers. Point {PointId}: {Status}.",
+			sourceConnection.RemoteDisplayName, peerConnections.Length, pointControl.Id, pointControl.Status);
+
+		foreach (PeerConnection peerConnection in peerConnections)
+		{
+			if (sourceConnection.CancellationToken.IsCancellationRequested)
+				return;
+
+			if (peerConnection.CancellationToken.IsCancellationRequested)
+				continue;
+
+			try
+			{
+				await _connectionService.SendAndLogAsync(peerConnection, PeerMessages.PointControlType, pointControl, sourceConnection.CancellationToken);
+			}
+			catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || peerConnection.CancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Server failed to relay point control to connected peer {RemotePeer}.",
+					peerConnection.RemoteDisplayName);
+				peerConnection.Stop();
+			}
+		}
+	}
+
+	private async Task SendToConnectedPeersAsync<TPayload>(
+		string messageType,
+		TPayload payload,
+		CancellationToken cancellationToken)
+	{
+		foreach (PeerConnection peerConnection in _connectionRegistry.GetAll())
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+
+			if (peerConnection.CancellationToken.IsCancellationRequested)
+				continue;
+
+			try
+			{
+				await _connectionService.SendAndLogAsync(peerConnection, messageType, payload, cancellationToken);
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || peerConnection.CancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Server failed to send {MessageType} to connected peer {RemotePeer}.",
+					messageType, peerConnection.RemoteDisplayName);
 				peerConnection.Stop();
 			}
 		}

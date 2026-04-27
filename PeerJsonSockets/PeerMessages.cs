@@ -14,6 +14,8 @@ public sealed record PeerStatus(string PeerName, string State, int ActiveConnect
 
 public sealed record PointStatus(int Id, string Status);
 
+public sealed record PointControl(int Id, string Status);
+
 public static class PeerMessages
 {
 	public const string HandshakeType = "handshake";
@@ -22,9 +24,10 @@ public static class PeerMessages
 	public const string PollAckType = "poll.ack";
 	public const string StatusType = "peer.status";
 	public const string PointStatusType = "point.status";
+	public const string PointControlType = "point.control";
 
 	public static Handshake CreateHandshake(string peerName) =>
-		new(peerName, "1.0", [HandshakeType, HandshakeAckType, PollType, PollAckType, StatusType, PointStatusType]);
+		new(peerName, "1.0", [HandshakeType, HandshakeAckType, PollType, PollAckType, StatusType, PointStatusType, PointControlType]);
 
 	public static HandshakeAck CreateHandshakeAck(string peerName) =>
 		new(peerName, Accepted: true, Message: "Handshake accepted.");
@@ -39,5 +42,8 @@ public static class PeerMessages
 		new(peerName, "ready", activeConnections);
 
 	public static PointStatus CreatePointStatus(int id, string status) =>
+		new(id, status);
+
+	public static PointControl CreatePointControl(int id, string status) =>
 		new(id, status);
 }

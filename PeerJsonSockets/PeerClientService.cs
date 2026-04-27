@@ -10,6 +10,7 @@ public sealed class PeerClientService
 	private readonly PeerConnectionService _connectionService;
 	private readonly PeerConnectionRegistry _connectionRegistry;
 	private readonly IReadOnlyList<IPeerClientLoopTask> _loopTasks;
+	private readonly IReadOnlyList<IPeerPointControlHandler> _pointControlHandlers;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
 	private readonly IotDatabase _database;
@@ -20,7 +21,8 @@ public sealed class PeerClientService
 		PeerConnectionService connectionService,
 		ILogger logger,
 		IotDatabase database,
-		IEnumerable<IPeerClientLoopTask>? loopTasks = null)
+		IEnumerable<IPeerClientLoopTask>? loopTasks = null,
+		IEnumerable<IPeerPointControlHandler>? pointControlHandlers = null)
 	{
 		_options = options;
 		_connectionRegistry = connectionRegistry;
@@ -28,6 +30,7 @@ public sealed class PeerClientService
 		_logger = logger;
 		_database = database;
 		_loopTasks = loopTasks?.ToArray() ?? [];
+		_pointControlHandlers = pointControlHandlers?.ToArray() ?? [];
 	}
 
 	public async Task RunAsync(PeerAddress peerAddress, CancellationToken cancellationToken)
@@ -162,7 +165,7 @@ public sealed class PeerClientService
 	private async Task RunClientLoopAsync(PeerConnection connection)
 	{
 		LoopTaskScheduler<PeerClientLoopContext> scheduler = CreateClientLoopScheduler();
-		PeerClientLoopContext context = new(connection, _database);
+		PeerClientLoopContext context = new(connection, _connectionService, _database);
 
 		try
 		{
@@ -259,10 +262,53 @@ public sealed class PeerClientService
 			return;
 		}
 
+		if (message.Type == PeerMessages.PointControlType)
+		{
+			await ProcessPointControlAsync(connection, message);
+			return;
+		}
+
 		if (message.Type == PeerMessages.PollType)
 			_logger.LogDebug("Client ignored poll from {RemotePeer}; poll acknowledgements are handled by server connections.", connection.RemoteDisplayName);
 
 		return;
+	}
+
+	private async Task ProcessPointControlAsync(PeerConnection connection, JsonPeerMessage message)
+	{
+		PointControl? pointControl = JsonSocketPeer.ReadPayload<PointControl>(message);
+		if (pointControl is null)
+		{
+			_logger.LogWarning("Client received invalid point control from {RemotePeer}.",
+				connection.RemoteDisplayName);
+			return;
+		}
+
+		PointStatus? pointStatus = await TryHandlePointControlAsync(pointControl, connection.CancellationToken);
+		if (pointStatus is not null)
+		{
+			_logger.LogInformation("Client handled point control from {RemotePeer}. Point {PointId}: {Status}.",
+				connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
+
+			await _connectionService.SendAndLogAsync(connection, PeerMessages.PointStatusType, pointStatus);
+			await RelayPointStatusToConnectedClientsAsync(connection, pointStatus);
+			return;
+		}
+
+		await RelayPointControlToConnectedClientsAsync(connection, pointControl);
+	}
+
+	private async Task<PointStatus?> TryHandlePointControlAsync(PointControl pointControl, CancellationToken cancellationToken)
+	{
+		foreach (IPeerPointControlHandler pointControlHandler in _pointControlHandlers)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			PointStatus? pointStatus = await pointControlHandler.TryHandlePointControlAsync(pointControl, cancellationToken);
+			if (pointStatus is not null)
+				return pointStatus;
+		}
+
+		return null;
 	}
 
 	private async Task RelayPointStatusToConnectedClientsAsync(PeerConnection sourceConnection, PointStatus pointStatus)
@@ -292,6 +338,43 @@ public sealed class PeerClientService
 			catch (Exception ex)
 			{
 				_logger.LogWarning(ex, "Server failed to relay point status to connected client {RemotePeer}.",
+					clientConnection.RemoteDisplayName);
+				clientConnection.Stop();
+			}
+		}
+	}
+
+	private async Task RelayPointControlToConnectedClientsAsync(PeerConnection sourceConnection, PointControl pointControl)
+	{
+		IReadOnlyCollection<PeerConnection> clientConnections = _connectionRegistry.GetByRole(PeerRole.Server);
+		if (clientConnections.Count == 0)
+		{
+			_logger.LogWarning("Client received point control from {RemotePeer} for point {PointId}, but it was not handled locally and no connected clients are available.",
+				sourceConnection.RemoteDisplayName, pointControl.Id);
+			return;
+		}
+
+		_logger.LogInformation("Client relaying point control from {RemotePeer} to {ConnectedClientCount} connected clients. Point {PointId}: {Status}.",
+			sourceConnection.RemoteDisplayName, clientConnections.Count, pointControl.Id, pointControl.Status);
+
+		foreach (PeerConnection clientConnection in clientConnections)
+		{
+			if (sourceConnection.CancellationToken.IsCancellationRequested)
+				return;
+
+			if (clientConnection.CancellationToken.IsCancellationRequested)
+				continue;
+
+			try
+			{
+				await _connectionService.SendAndLogAsync(clientConnection, PeerMessages.PointControlType, pointControl, sourceConnection.CancellationToken);
+			}
+			catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || clientConnection.CancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Client failed to relay point control to connected client {RemotePeer}.",
 					clientConnection.RemoteDisplayName);
 				clientConnection.Stop();
 			}

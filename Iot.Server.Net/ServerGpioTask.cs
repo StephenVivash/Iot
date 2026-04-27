@@ -10,19 +10,20 @@ using System.Device.Pwm;
 
 namespace Iot.Server.Net;
 
-internal sealed class ServerGpioTask : IPeerServerLoopTask
+internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHandler
 {
 	private readonly ILogger _logger;
 	private readonly int _deviceId;
+	private readonly IotDatabase _database;
 	private readonly Dictionary<int, GpioPoint> _points = [];
 	private GpioController? _gpioController;
-	private IotDatabase? _database;
 	private bool _initialiseGpioPointsAttempted;
 
-	public ServerGpioTask(ILogger logger, int deviceId)
+	public ServerGpioTask(ILogger logger, int deviceId, IotDatabase database)
 	{
 		_logger = logger;
 		_deviceId = deviceId;
+		_database = database;
 		InitialiseGpioController();
 	}
 
@@ -52,12 +53,6 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		}
 
 		_initialiseGpioPointsAttempted = true;
-		if (_database is null)
-		{
-			_logger.LogWarning("Server GPIO points cannot be initialised before the database is available.");
-			return;
-		}
-
 		using AppDbContext dbContext = _database.CreateDbContext();
 		var points = dbContext.Points
 			.AsNoTracking()
@@ -103,7 +98,6 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 
 	public async Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_database ??= context.Database;
 		InitialiseGpioPoints();
 
 		if (_points.Count == 0)
@@ -129,6 +123,53 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 			await context.SendToConnectedPeersAsync(PeerMessages.PointStatusType,
 				PeerMessages.CreatePointStatus(point.Id, status), cancellationToken);
 		}
+	}
+
+	public async Task<PointStatus?> TryHandlePointControlAsync(PointControl pointControl, CancellationToken cancellationToken)
+	{
+		InitialiseGpioPoints();
+
+		await using AppDbContext dbContext = _database.CreateDbContext();
+		Point? dbPoint = await dbContext.Points.FindAsync([pointControl.Id], cancellationToken);
+		if (dbPoint is null || dbPoint.DeviceId != _deviceId)
+			return null;
+
+		if (dbPoint.TypeId != ePointType.eDigitalOutput)
+		{
+			_logger.LogWarning("Server GPIO rejected point control for non-digital-output point {PointId} ({PointName}) on device {DeviceId}.",
+				dbPoint.Id, dbPoint.Name, _deviceId);
+			return PeerMessages.CreatePointStatus(dbPoint.Id, dbPoint.Status);
+		}
+
+		if (!_points.TryGetValue(dbPoint.Id, out GpioPoint? gpioPoint))
+		{
+			_logger.LogWarning("Server GPIO point control could not find initialised point {PointId} ({PointName}) on device {DeviceId}.",
+				dbPoint.Id, dbPoint.Name, _deviceId);
+			return PeerMessages.CreatePointStatus(dbPoint.Id, dbPoint.Status);
+		}
+
+		string status = NormaliseControlStatus(pointControl.Status, dbPoint.Status0, dbPoint.Status1);
+		bool active = IsActiveStatus(status, dbPoint.Status1);
+
+		if (gpioPoint.Pin is null)
+		{
+			_logger.LogWarning("Server GPIO point {PointId} ({PointName}) has no open GPIO pin; updating database status only.",
+				dbPoint.Id, dbPoint.Name);
+		}
+		else
+		{
+			gpioPoint.Pin.Write(active ? PinValue.High : PinValue.Low);
+		}
+
+		gpioPoint.CurrentStatus = status;
+		dbPoint.Status = status;
+		dbPoint.TimeStamp = DateTime.UtcNow;
+		await dbContext.SaveChangesAsync(cancellationToken);
+
+		_logger.LogInformation("Server GPIO controlled output point {PointId} ({PointName}) on device {DeviceId}: {Status}.",
+			dbPoint.Id, dbPoint.Name, _deviceId, status);
+
+		return PeerMessages.CreatePointStatus(dbPoint.Id, status);
 	}
 
 	private void InitialisePoint(GpioPoint point)
@@ -306,6 +347,39 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 		return string.IsNullOrWhiteSpace(status) ? fallback : status;
 	}
 
+	private static string NormaliseControlStatus(string requestedStatus, string status0, string status1)
+	{
+		string offStatus = GetFallbackStatus(status0, "Off");
+		string onStatus = GetFallbackStatus(status1, "On");
+
+		if (string.Equals(requestedStatus, onStatus, StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "On", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "High", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "True", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "1", StringComparison.OrdinalIgnoreCase))
+		{
+			return onStatus;
+		}
+
+		if (string.Equals(requestedStatus, offStatus, StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "Off", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "Low", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "False", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(requestedStatus, "0", StringComparison.OrdinalIgnoreCase))
+		{
+			return offStatus;
+		}
+
+		return requestedStatus;
+	}
+
+	private static bool IsActiveStatus(string status, string status1) =>
+		string.Equals(status, GetFallbackStatus(status1, "On"), StringComparison.OrdinalIgnoreCase) ||
+		string.Equals(status, "On", StringComparison.OrdinalIgnoreCase) ||
+		string.Equals(status, "High", StringComparison.OrdinalIgnoreCase) ||
+		string.Equals(status, "True", StringComparison.OrdinalIgnoreCase) ||
+		string.Equals(status, "1", StringComparison.OrdinalIgnoreCase);
+
 	private sealed class GpioPoint
 	{
 		public GpioPoint(int id, string name, ePointType typeId, string address, string currentStatus, string status0, string status1)
@@ -327,7 +401,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask
 
 		public string Address { get; }
 
-		public string CurrentStatus { get; }
+		public string CurrentStatus { get; set; }
 
 		public string Status0 { get; }
 
