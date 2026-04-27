@@ -347,37 +347,41 @@ public sealed class PeerClientService
 	private async Task RelayPointControlToConnectedClientsAsync(PeerConnection sourceConnection, PointControl pointControl)
 	{
 		IReadOnlyCollection<PeerConnection> clientConnections = _connectionRegistry.GetByRole(PeerRole.Server);
-		if (clientConnections.Count == 0)
+		PointControlRoute? route = await PointControlRouteResolver.ResolveAsync(
+			_database,
+			_options.PeerName,
+			pointControl.Id,
+			sourceConnection,
+			clientConnections,
+			_logger,
+			sourceConnection.CancellationToken);
+
+		if (route is null)
 		{
-			_logger.LogWarning("Client received point control from {RemotePeer} for point {PointId}, but it was not handled locally and no connected clients are available.",
+			_logger.LogWarning("Client received point control from {RemotePeer} for point {PointId}, but no route is available.",
 				sourceConnection.RemoteDisplayName, pointControl.Id);
 			return;
 		}
 
-		_logger.LogInformation("Client relaying point control from {RemotePeer} to {ConnectedClientCount} connected clients. Point {PointId}: {Status}.",
-			sourceConnection.RemoteDisplayName, clientConnections.Count, pointControl.Id, pointControl.Status);
+		_logger.LogInformation("Client relaying point control from {RemotePeer} to {NextHopPeer}. Device: {TargetDeviceName} Point {PointId}: {Status}.",
+			sourceConnection.RemoteDisplayName, route.Connection.RemoteDisplayName, route.TargetDeviceName, pointControl.Id, pointControl.Status);
 
-		foreach (PeerConnection clientConnection in clientConnections)
+		PeerConnection clientConnection = route.Connection;
+		if (sourceConnection.CancellationToken.IsCancellationRequested || clientConnection.CancellationToken.IsCancellationRequested)
+			return;
+
+		try
 		{
-			if (sourceConnection.CancellationToken.IsCancellationRequested)
-				return;
-
-			if (clientConnection.CancellationToken.IsCancellationRequested)
-				continue;
-
-			try
-			{
-				await _connectionService.SendAndLogAsync(clientConnection, PeerMessages.PointControlType, pointControl, sourceConnection.CancellationToken);
-			}
-			catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || clientConnection.CancellationToken.IsCancellationRequested)
-			{
-			}
-			catch (Exception ex)
-			{
-				_logger.LogWarning(ex, "Client failed to relay point control to connected client {RemotePeer}.",
-					clientConnection.RemoteDisplayName);
-				clientConnection.Stop();
-			}
+			await _connectionService.SendAndLogAsync(clientConnection, PeerMessages.PointControlType, pointControl, sourceConnection.CancellationToken);
+		}
+		catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || clientConnection.CancellationToken.IsCancellationRequested)
+		{
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Client failed to relay point control to connected client {RemotePeer}.",
+				clientConnection.RemoteDisplayName);
+			clientConnection.Stop();
 		}
 	}
 }

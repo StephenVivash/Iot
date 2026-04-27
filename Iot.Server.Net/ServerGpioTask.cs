@@ -93,7 +93,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 			}
 		}
 
-		_logger.LogInformation("Server initialised {GpioPointCount} GPIO points for device {DeviceId}.", _points.Count, _deviceId);
+		_logger.LogInformation("Server initialised {GpioPointCount} GPIO points for device {DeviceId}.",
+			_points.Count, _deviceId);
 	}
 
 	public async Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
@@ -124,7 +125,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (changedStatuses.Count == 0)
 		{
-			_logger.LogDebug("Server GPIO polled {GpioPointCount} points with no status changes.", _points.Count);
+			_logger.LogDebug("Server GPIO polled {GpioPointCount} points with no status changes.",
+				_points.Count);
 			return;
 		}
 
@@ -132,7 +134,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (context.ConnectedPeerCount == 0)
 		{
-			_logger.LogInformation("Server GPIO updated {ChangedPointCount} changed points but has no connected peers.", changedStatuses.Count);
+			_logger.LogInformation("Server GPIO updated {ChangedPointCount} changed points but has no connected peers.",
+				changedStatuses.Count);
 			return;
 		}
 
@@ -255,7 +258,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (!TryReadPin(point.Address, out int pinNumber))
 		{
-			_logger.LogWarning("Server GPIO point {PointId} ({PointName}) has invalid GPIO pin address '{PointAddress}'.", point.Id, point.Name, point.Address);
+			_logger.LogWarning("Server GPIO point {PointId} ({PointName}) has invalid GPIO pin address '{PointAddress}'.",
+				point.Id, point.Name, point.Address);
 			return;
 		}
 
@@ -300,7 +304,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (channel < 0)
 		{
-			_logger.LogWarning("Server PWM point {PointId} ({PointName}) has invalid PWM address '{PointAddress}'.", point.Id, point.Name, point.Address);
+			_logger.LogWarning("Server PWM point {PointId} ({PointName}) has invalid PWM address '{PointAddress}'.",
+				point.Id, point.Name, point.Address);
 			return;
 		}
 
@@ -310,7 +315,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "Server PWM point {PointId} ({PointName}) could not open chip {PwmChip}, channel {PwmChannel}.", point.Id, point.Name, chip, channel);
+			_logger.LogWarning(ex, "Server PWM point {PointId} ({PointName}) could not open chip {PwmChip}, channel {PwmChannel}.",
+				point.Id, point.Name, chip, channel);
 		}
 	}
 
@@ -322,7 +328,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 			!int.TryParse(dioValue, out int dioPin) ||
 			!int.TryParse(clkValue, out int clkPin))
 		{
-			_logger.LogWarning("Server TM1637 point {PointId} ({PointName}) has invalid address '{PointAddress}'.", point.Id, point.Name, point.Address);
+			_logger.LogWarning("Server TM1637 point {PointId} ({PointName}) has invalid address '{PointAddress}'.",
+				point.Id, point.Name, point.Address);
 			return;
 		}
 
@@ -341,7 +348,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "Server I2C point {PointId} ({PointName}) could not open bus {I2cBus}, address 0x{I2cAddress:X2}.", point.Id, point.Name, busId, deviceAddress);
+			_logger.LogWarning(ex, "Server I2C point {PointId} ({PointName}) could not open bus {I2cBus}, address 0x{I2cAddress:X2}.",
+				point.Id, point.Name, busId, deviceAddress);
 		}
 	}
 
@@ -367,7 +375,8 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "Server GPIO point {PointId} ({PointName}) poll failed.", point.Id, point.Name);
+			_logger.LogWarning(ex, "Server GPIO point {PointId} ({PointName}) poll failed.",
+				point.Id, point.Name);
 			return point.CurrentStatus;
 		}
 	}

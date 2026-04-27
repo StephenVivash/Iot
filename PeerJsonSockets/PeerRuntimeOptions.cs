@@ -14,8 +14,8 @@ public sealed class PeerRuntimeOptions
 	{
 		PeerName = peerName;
 		LoopDelay = loopDelay ?? TimeSpan.FromSeconds(1);
-		PollInterval = pollInterval ?? TimeSpan.FromMinutes(1);
-		SummaryInterval = summaryInterval ?? TimeSpan.FromMinutes(10);
+		PollInterval = pollInterval ?? TimeSpan.FromMinutes(10);
+		SummaryInterval = summaryInterval ?? TimeSpan.FromHours(4);
 		MaintenanceInterval = maintenanceInterval ?? TimeSpan.FromMinutes(1);
 		FastReconnectDelay = fastReconnectDelay ?? TimeSpan.FromSeconds(10);
 		SlowReconnectDelay = slowReconnectDelay ?? TimeSpan.FromMinutes(1);

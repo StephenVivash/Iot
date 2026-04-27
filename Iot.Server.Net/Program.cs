@@ -19,7 +19,7 @@ internal static class Program
 		StartupMode startupMode;
 		try
 		{
-			startupMode = ParseStartupMode(args);
+			startupMode = ParseStartupMode(args); // logger
 		}
 		catch (ArgumentException ex)
 		{
@@ -29,7 +29,7 @@ internal static class Program
 		}
 
 		int deviceId = startupMode.DeviceId ?? 5;
-		basePath = deviceId == 1 ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
+		basePath = (deviceId > 0) && (deviceId < 5) ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
 
 		using ILoggerFactory loggerFactory = CreateLoggerFactory(args.Any(arg => arg.Equals("-console", StringComparison.OrdinalIgnoreCase)));
 		logger = loggerFactory.CreateLogger("Iot.Server.Net");
@@ -89,7 +89,7 @@ internal static class Program
 		await Task.WhenAll(tasks);
 	}
 
-	private static StartupMode ParseStartupMode(string[] args)
+	private static StartupMode ParseStartupMode(string[] args) // logger
 	{
 		bool serverSpecified = false;
 		int serverPort = DefaultPort;

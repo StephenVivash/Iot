@@ -16,7 +16,7 @@ public sealed class MauiClientConnectionLogTask : IPeerClientLoopTask
 
 	public string Name => "client.connection-log"; // maui.
 
-	public TimeSpan Interval => TimeSpan.FromSeconds(30);
+	public TimeSpan Interval => TimeSpan.FromHours(4);
 
 	public Task ExecuteAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{

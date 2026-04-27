@@ -14,7 +14,7 @@ internal sealed class ServerHeartbeatTask : IPeerServerLoopTask
 
 	public string Name => "server.heartbeat";
 
-	public TimeSpan Interval => TimeSpan.FromSeconds(30);
+	public TimeSpan Interval => TimeSpan.FromHours(4);
 
 	public Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
