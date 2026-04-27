@@ -11,16 +11,15 @@ using PeerJsonSockets;
 internal static class Program
 {
 	private const int DefaultPort = 5050;
-	private static ILogger logger = null;
-
-	private static string basePath;
+	private static ILogger? logger;
+	private static string? basePath;
 
 	private static async Task Main(string[] args)
 	{
 		StartupMode startupMode;
 		try
 		{
-			startupMode = ParseStartupMode(args, logger);
+			startupMode = ParseStartupMode(args); // logger
 		}
 		catch (ArgumentException ex)
 		{
@@ -30,7 +29,7 @@ internal static class Program
 		}
 
 		int deviceId = startupMode.DeviceId ?? 5;
-		basePath = deviceId == 1 ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
+		basePath = (deviceId > 0) && (deviceId < 5) ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
 
 		using ILoggerFactory loggerFactory = CreateLoggerFactory(args.Any(arg => arg.Equals("-console", StringComparison.OrdinalIgnoreCase)));
 		logger = loggerFactory.CreateLogger("Iot.Server.Net");
@@ -46,6 +45,7 @@ internal static class Program
 		PeerConnectionRegistry connectionRegistry = new();
 		PeerConnectionService connectionService = new(logger);
 		IotDatabase database = new(Path.Combine(basePath, "data", "Iot.Data.db"));
+		List<IPeerPointControlHandler> pointControlHandlers = [];
 		if (startupMode.InitialiseDatabase)
 		{
 			await using AppDbContext dbContext = database.CreateDbContext();
@@ -63,13 +63,17 @@ internal static class Program
 				new ServerHeartbeatTask(logger),
 			];
 
-			if (deviceId == 1)
-				serverLoopTasks.Add(new ServerGpioTask(logger, deviceId));
-			else
-				serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
+			if ((deviceId > 0) && (deviceId < 5))
+			{
+				ServerGpioTask serverGpioTask = new(logger, deviceId, database);
+				serverLoopTasks.Add(serverGpioTask);
+				pointControlHandlers.Add(serverGpioTask);
+			}
+			//else
+			//	serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
-				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks);
+				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks, pointControlHandlers);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));
@@ -78,14 +82,14 @@ internal static class Program
 		if (startupMode.ClientPeer is not null)
 		{
 			PeerClientService clientService = new(options, connectionRegistry,
-				connectionService, logger, database);
+				connectionService, logger, database, pointControlHandlers: pointControlHandlers);
 			tasks.Add(clientService.RunAsync(startupMode.ClientPeer, shutdown.Token));
 		}
 
 		await Task.WhenAll(tasks);
 	}
 
-	private static StartupMode ParseStartupMode(string[] args, ILogger logger)
+	private static StartupMode ParseStartupMode(string[] args) // logger
 	{
 		bool serverSpecified = false;
 		int serverPort = DefaultPort;

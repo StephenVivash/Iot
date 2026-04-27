@@ -18,10 +18,7 @@ public sealed class PeerConnectionService
 	{
 		JsonPeerMessage? message = await ReceiveAndLogAsync(connection.Role, connection.Peer, connection.CancellationToken);
 		if (message is not null && TryReadPeerName(message, out string? peerName))
-		{
 			connection.SetRemotePeerName(peerName);
-		}
-
 		return message;
 	}
 
@@ -35,16 +32,10 @@ public sealed class PeerConnectionService
 		}
 
 		if (TryReadPeerName(message, out string? peerName))
-		{
 			RememberPeerName(peer, peerName);
-		}
 
-		_logger.LogDebug(
-			"{PeerRole} received {MessageType} from {RemotePeer}. Payload: {Payload}",
-			role,
-			message.Type,
-			GetRemoteDisplayName(peer),
-			message.Payload.GetRawText());
+		_logger.LogDebug("{PeerRole} received {MessageType} from {RemotePeer}. Payload: {Payload}",
+			role, message.Type,	GetRemoteDisplayName(peer),	message.Payload.GetRawText());
 
 		return message;
 	}
@@ -56,10 +47,7 @@ public sealed class PeerConnectionService
 		CancellationToken cancellationToken = default)
 	{
 		if (!cancellationToken.CanBeCanceled)
-		{
 			return SendAndLogAsync(connection.Role, connection.Peer, messageType, payload, connection.CancellationToken);
-		}
-
 		return SendAndLogWithLinkedCancellationAsync(connection, messageType, payload, cancellationToken);
 	}
 
@@ -83,12 +71,8 @@ public sealed class PeerConnectionService
 		CancellationToken cancellationToken)
 	{
 		await peer.SendAsync(messageType, payload, cancellationToken);
-		_logger.LogDebug(
-			"{PeerRole} sent {MessageType} to {RemotePeer}. Payload: {Payload}",
-			role,
-			messageType,
-			GetRemoteDisplayName(peer),
-			JsonSerializer.Serialize(payload, JsonSocketPeer.SerializerOptions));
+		_logger.LogDebug("{PeerRole} sent {MessageType} to {RemotePeer}. Payload: {Payload}",
+			role, messageType, GetRemoteDisplayName(peer), JsonSerializer.Serialize(payload, JsonSocketPeer.SerializerOptions));
 	}
 
 	internal string GetRemoteDisplayName(PeerConnection connection) => connection.RemoteDisplayName;
@@ -97,19 +81,14 @@ public sealed class PeerConnectionService
 	{
 		string? endpointKey = GetEndpointKey(connection.Peer);
 		if (endpointKey is not null && _peerNamesByEndpoint.TryGetValue(endpointKey, out string? peerName))
-		{
 			connection.SetRemotePeerName(peerName);
-		}
 	}
 
 	internal string GetRemoteDisplayName(JsonSocketPeer peer)
 	{
 		string? endpointKey = GetEndpointKey(peer);
 		if (endpointKey is not null && _peerNamesByEndpoint.TryGetValue(endpointKey, out string? peerName))
-		{
 			return PeerConnectionDisplay.Format(peerName, peer.RemoteEndPoint);
-		}
-
 		return PeerConnectionDisplay.Format(peerName: null, peer.RemoteEndPoint);
 	}
 
@@ -117,9 +96,7 @@ public sealed class PeerConnectionService
 	{
 		string? endpointKey = GetEndpointKey(peer);
 		if (endpointKey is not null)
-		{
 			_peerNamesByEndpoint[endpointKey] = peerName;
-		}
 	}
 
 	private static string? GetEndpointKey(JsonSocketPeer peer) => peer.RemoteEndPoint?.ToString();

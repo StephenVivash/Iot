@@ -5,10 +5,12 @@ namespace PeerJsonSockets;
 public sealed class PeerClientLoopContext
 {
 	private readonly PeerConnection _connection;
+	private readonly PeerConnectionService _connectionService;
 
-	internal PeerClientLoopContext(PeerConnection connection, IotDatabase database)
+	internal PeerClientLoopContext(PeerConnection connection, PeerConnectionService connectionService, IotDatabase database)
 	{
 		_connection = connection;
+		_connectionService = connectionService;
 		Database = database;
 	}
 
@@ -25,4 +27,7 @@ public sealed class PeerClientLoopContext
 	public int SentPollCount { get; internal set; }
 
 	public int ProcessedMessageCount { get; internal set; }
+
+	public Task SendAsync<TPayload>(string messageType, TPayload payload, CancellationToken cancellationToken = default) =>
+		_connectionService.SendAndLogAsync(_connection, messageType, payload, cancellationToken);
 }

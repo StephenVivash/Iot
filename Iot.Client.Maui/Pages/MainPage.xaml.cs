@@ -58,7 +58,8 @@ public partial class MainPage : ContentPage
 		IotDatabase database = new(Path.Combine(basePath, "data", "Iot.Data.db"));
 		IPeerClientLoopTask[] loopTasks =
 		[
-			new MauiClientConnectionLogTask(loggerFactory.CreateLogger<MauiClientConnectionLogTask>())
+			new MauiClientConnectionLogTask(loggerFactory.CreateLogger<MauiClientConnectionLogTask>()),
+			new MauiPointControlTestTask(loggerFactory.CreateLogger<MauiPointControlTestTask>())
 		];
 
 		PeerClientService peerClientService = new(options, connectionRegistry, connectionService, logger, database, loopTasks);

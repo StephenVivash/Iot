@@ -19,7 +19,7 @@ internal sealed class ServerDataTask : IPeerServerLoopTask
 
 	public string Name => "server.data";
 
-	public TimeSpan Interval => TimeSpan.FromMinutes(1);
+	public TimeSpan Interval => TimeSpan.FromMinutes(10);
 
 	public async Task ExecuteAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{

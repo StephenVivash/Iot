@@ -12,6 +12,7 @@ public sealed class PeerServerService
 	private readonly PeerConnectionService _connectionService;
 	private readonly PeerConnectionRegistry _connectionRegistry;
 	private readonly IReadOnlyList<IPeerServerLoopTask> _loopTasks;
+	private readonly IReadOnlyList<IPeerPointControlHandler> _pointControlHandlers;
 	private readonly ILogger _logger;
 	private readonly PeerRuntimeOptions _options;
 	private readonly IotDatabase _database;
@@ -24,7 +25,8 @@ public sealed class PeerServerService
 		PeerConnectionService connectionService,
 		ILogger logger,
 		IotDatabase database,
-		IEnumerable<IPeerServerLoopTask>? loopTasks = null)
+		IEnumerable<IPeerServerLoopTask>? loopTasks = null,
+		IEnumerable<IPeerPointControlHandler>? pointControlHandlers = null)
 	{
 		_listenAddress = listenAddress;
 		_listenPort = listenPort;
@@ -34,6 +36,7 @@ public sealed class PeerServerService
 		_logger = logger;
 		_database = database;
 		_loopTasks = loopTasks?.ToArray() ?? [];
+		_pointControlHandlers = pointControlHandlers?.ToArray() ?? [];
 	}
 
 	public async Task RunAsync(CancellationToken cancellationToken)
@@ -54,7 +57,7 @@ public sealed class PeerServerService
 			if (helloMessage?.Type == PeerMessages.HandshakeType)
 			{
 				await _connectionService.SendAndLogAsync(PeerRole.Server, peer,
-					PeerMessages.AckType, PeerMessages.CreateAck(_options.PeerName),
+					PeerMessages.HandshakeAckType, PeerMessages.CreateHandshakeAck(_options.PeerName),
 					cancellationToken);
 			}
 
@@ -132,7 +135,49 @@ public sealed class PeerServerService
 			return;
 		}
 
+		if (message.Type == PeerMessages.PointControlType)
+		{
+			await ProcessPointControlAsync(connection, message);
+			return;
+		}
+
 		_logger.LogDebug("Server ignored {MessageType} from {RemotePeer}.", message.Type, connection.RemoteDisplayName);
+	}
+
+	private async Task ProcessPointControlAsync(PeerConnection connection, JsonPeerMessage message)
+	{
+		PointControl? pointControl = JsonSocketPeer.ReadPayload<PointControl>(message);
+		if (pointControl is null)
+		{
+			_logger.LogWarning("Server received invalid point control from {RemotePeer}.",
+				connection.RemoteDisplayName);
+			return;
+		}
+
+		PointStatus? pointStatus = await TryHandlePointControlAsync(pointControl, connection.CancellationToken);
+		if (pointStatus is not null)
+		{
+			_logger.LogInformation("Server handled point control from {RemotePeer}. Point {PointId}: {Status}.",
+				connection.RemoteDisplayName, pointStatus.Id, pointStatus.Status);
+
+			await SendPointStatusToConnectedPeersAsync(pointStatus, connection.CancellationToken);
+			return;
+		}
+
+		await RelayPointControlToConnectedPeersAsync(connection, pointControl);
+	}
+
+	private async Task<PointStatus?> TryHandlePointControlAsync(PointControl pointControl, CancellationToken cancellationToken)
+	{
+		foreach (IPeerPointControlHandler pointControlHandler in _pointControlHandlers)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			PointStatus? pointStatus = await pointControlHandler.TryHandlePointControlAsync(pointControl, cancellationToken);
+			if (pointStatus is not null)
+				return pointStatus;
+		}
+
+		return null;
 	}
 
 	private async Task ProcessPointStatusAsync(PeerConnection connection, JsonPeerMessage message)
@@ -164,6 +209,116 @@ public sealed class PeerServerService
 
 		_logger.LogInformation("Server processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
 			connection.RemoteDisplayName, point.Name, point.Id, point.Status, units);
+
+		await RelayPointStatusToConnectedPeersAsync(connection, pointStatus);
+	}
+
+	private Task SendPointStatusToConnectedPeersAsync(PointStatus pointStatus, CancellationToken cancellationToken) =>
+		SendToConnectedPeersAsync(PeerMessages.PointStatusType, pointStatus, cancellationToken);
+
+	private async Task RelayPointStatusToConnectedPeersAsync(PeerConnection sourceConnection, PointStatus pointStatus)
+	{
+		PeerConnection[] peerConnections = _connectionRegistry.GetAll()
+			.Where(connection => connection.Id != sourceConnection.Id)
+			.ToArray();
+
+		if (peerConnections.Length == 0)
+			return;
+
+		_logger.LogInformation("Server relaying point status from {RemotePeer} to {ConnectedPeerCount} connected peers.",
+			sourceConnection.RemoteDisplayName, peerConnections.Length);
+
+		foreach (PeerConnection peerConnection in peerConnections)
+		{
+			if (sourceConnection.CancellationToken.IsCancellationRequested)
+				return;
+
+			if (peerConnection.CancellationToken.IsCancellationRequested)
+				continue;
+
+			try
+			{
+				await _connectionService.SendAndLogAsync(peerConnection, PeerMessages.PointStatusType, pointStatus, sourceConnection.CancellationToken);
+			}
+			catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || peerConnection.CancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Server failed to relay point status to connected peer {RemotePeer}.",
+					peerConnection.RemoteDisplayName);
+				peerConnection.Stop();
+			}
+		}
+	}
+
+	private async Task RelayPointControlToConnectedPeersAsync(PeerConnection sourceConnection, PointControl pointControl)
+	{
+		PeerConnection[] peerConnections = _connectionRegistry.GetAll().ToArray();
+		PointControlRoute? route = await PointControlRouteResolver.ResolveAsync(
+			_database,
+			_options.PeerName,
+			pointControl.Id,
+			sourceConnection,
+			peerConnections,
+			_logger,
+			sourceConnection.CancellationToken);
+
+		if (route is null)
+		{
+			_logger.LogWarning("Server received point control from {RemotePeer} for point {PointId}, but no route is available.",
+				sourceConnection.RemoteDisplayName, pointControl.Id);
+			return;
+		}
+
+		_logger.LogInformation("Server relaying point control from {RemotePeer} to {NextHopPeer}. Device: {TargetDeviceName} Point {PointId}: {Status}.",
+			sourceConnection.RemoteDisplayName, route.Connection.RemoteDisplayName, route.TargetDeviceName, pointControl.Id, pointControl.Status);
+
+		PeerConnection peerConnection = route.Connection;
+		if (sourceConnection.CancellationToken.IsCancellationRequested || peerConnection.CancellationToken.IsCancellationRequested)
+			return;
+
+		try
+		{
+			await _connectionService.SendAndLogAsync(peerConnection, PeerMessages.PointControlType, pointControl, sourceConnection.CancellationToken);
+		}
+		catch (OperationCanceledException) when (sourceConnection.CancellationToken.IsCancellationRequested || peerConnection.CancellationToken.IsCancellationRequested)
+		{
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Server failed to relay point control to connected peer {RemotePeer}.",
+				peerConnection.RemoteDisplayName);
+			peerConnection.Stop();
+		}
+	}
+
+	private async Task SendToConnectedPeersAsync<TPayload>(
+		string messageType,
+		TPayload payload,
+		CancellationToken cancellationToken)
+	{
+		foreach (PeerConnection peerConnection in _connectionRegistry.GetAll())
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+
+			if (peerConnection.CancellationToken.IsCancellationRequested)
+				continue;
+
+			try
+			{
+				await _connectionService.SendAndLogAsync(peerConnection, messageType, payload, cancellationToken);
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || peerConnection.CancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Server failed to send {MessageType} to connected peer {RemotePeer}.",
+					messageType, peerConnection.RemoteDisplayName);
+				peerConnection.Stop();
+			}
+		}
 	}
 
 	private async Task RunServerLoopAsync(CancellationToken cancellationToken)
@@ -200,14 +355,14 @@ public sealed class PeerServerService
 
 	private Task RunServerConnectionSummaryAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogInformation("Server task connection summary. Connected clients: {ConnectedClientCount}.",
+		_logger.LogInformation("Server connection summary. Connected clients: {ConnectedClientCount}.",
 			context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
 
 	private Task RunServerMaintenanceAsync(PeerServerLoopContext context, CancellationToken cancellationToken)
 	{
-		_logger.LogDebug("Server task maintenance. Connected clients: {ConnectedClientCount}.", context.ConnectedClientCount);
+		_logger.LogDebug("Server maintenance. Connected clients: {ConnectedClientCount}.", context.ConnectedClientCount);
 		return Task.CompletedTask;
 	}
 }
