@@ -7,7 +7,7 @@ namespace Iot.Client.Maui.Services;
 
 public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 {
-	private static readonly int[] DeviceIds = [1, 3];
+	private static readonly int[] DeviceIds = [1, 3, 7, 8, 9, 10 ];
 
 	private readonly ILogger<MauiPointControlTestTask> _logger;
 
@@ -26,7 +26,7 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 		var points = await dbContext.Points
 			.AsNoTracking()
 			.Where(point => DeviceIds.Contains(point.DeviceId) &&
-				point.TypeId == ePointType.eDigitalOutput)
+				(point.TypeId == ePointType.eDigitalOutput || point.TypeId == ePointType.ePwmOutput))
 			.OrderBy(point => point.DeviceId)
 			.ThenBy(point => point.Id)
 			.Select(point => new
@@ -50,8 +50,8 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 				? offStatus
 				: onStatus;
 
-			_logger.LogInformation("MAUI test sending point control to device {DeviceId}. {PointName} ({PointId}): {Status}.",
-				point.DeviceId, point.Name, point.Id, nextStatus);
+			//_logger.LogInformation("MAUI test sending point control to device {DeviceId}. {PointName} ({PointId}): {Status}.",
+			//	point.DeviceId, point.Name, point.Id, nextStatus);
 
 			await context.SendAsync(PeerMessages.PointControlType,
 				PeerMessages.CreatePointControl(point.Id, nextStatus), cancellationToken);

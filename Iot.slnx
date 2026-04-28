@@ -1,5 +1,7 @@
 <Solution>
-  <Project Path="Iot.Client.Maui/Iot.Client.Maui.csproj" />
+  <Project Path="Iot.Client.Maui/Iot.Client.Maui.csproj">
+    <Deploy Solution="Release|*" />
+  </Project>
   <Project Path="Iot.Data.Test/Iot.Data.Test.csproj" />
   <Project Path="Iot.Data/Iot.Data.csproj" />
   <Project Path="Iot.Server.Nano/Iot.Server.Nano.nfproj" Type="11a8dd76-328b-46df-9f39-f559912d0360" Id="41e4d459-aea5-4b27-9e34-5957759cc829">

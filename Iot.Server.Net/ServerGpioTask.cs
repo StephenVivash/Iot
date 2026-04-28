@@ -88,7 +88,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 			}
 			catch (Exception ex)
 			{
-				_logger.LogWarning(ex, "Server GPIO point {PointId} ({PointName}) could not be initialised from address '{PointAddress}'.",
+				_logger.LogWarning(ex, "Server point {PointId} ({PointName}) could not be initialised from address '{PointAddress}'.",
 					point.Id, point.Name, point.Address);
 			}
 		}
@@ -103,7 +103,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (_points.Count == 0)
 		{
-			_logger.LogInformation("Server GPIO has no initialised points to poll.");
+			_logger.LogDebug("Server has no initialised points to poll.");
 			return;
 		}
 
@@ -116,7 +116,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 			if (string.Equals(point.CurrentStatus, status, StringComparison.Ordinal))
 				continue;
 
-			_logger.LogInformation("Server GPIO point changed. {PointName} ({PointId}): {PreviousStatus} -> {Status}.",
+			_logger.LogDebug("Server point changed. {PointName} ({PointId}): {PreviousStatus} -> {Status}.",
 				point.Name, point.Id, point.CurrentStatus, status);
 
 			point.CurrentStatus = status;
@@ -125,7 +125,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (changedStatuses.Count == 0)
 		{
-			_logger.LogDebug("Server GPIO polled {GpioPointCount} points with no status changes.",
+			_logger.LogDebug("Server polled {GpioPointCount} points with no status changes.",
 				_points.Count);
 			return;
 		}
@@ -134,7 +134,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (context.ConnectedPeerCount == 0)
 		{
-			_logger.LogInformation("Server GPIO updated {ChangedPointCount} changed points but has no connected peers.",
+			_logger.LogInformation("Server updated {ChangedPointCount} changed points but has no connected peers.",
 				changedStatuses.Count);
 			return;
 		}
@@ -143,7 +143,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			_logger.LogInformation("Server GPIO sending changed point status to ({ConnectedClientCount} clients, {ConnectedServerCount} servers). Point {PointId}: {Status}.",
+			_logger.LogInformation("Server sending changed point status to ({ConnectedClientCount} clients, {ConnectedServerCount} servers). Point {PointId}: {Status}.",
 				context.ConnectedClientCount, context.ConnectedServerCount, pointStatus.Id, pointStatus.Status);
 
 			await context.SendToConnectedPeersAsync(PeerMessages.PointStatusType, pointStatus, cancellationToken);
@@ -159,7 +159,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 			Point? dbPoint = await dbContext.Points.FindAsync([pointStatus.Id], cancellationToken);
 			if (dbPoint is null)
 			{
-				_logger.LogWarning("Server GPIO could not update unknown point {PointId}: {Status}.",
+				_logger.LogWarning("Server could not update unknown point {PointId}: {Status}.",
 					pointStatus.Id, pointStatus.Status);
 				continue;
 			}
@@ -182,14 +182,14 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (dbPoint.TypeId != ePointType.eDigitalOutput)
 		{
-			_logger.LogWarning("Server GPIO rejected point control for non-digital-output point {PointId} ({PointName}) on device {DeviceId}.",
+			_logger.LogWarning("Server rejected point control for non-digital-output point {PointId} ({PointName}) on device {DeviceId}.",
 				dbPoint.Id, dbPoint.Name, _deviceId);
 			return PeerMessages.CreatePointStatus(dbPoint.Id, dbPoint.Status);
 		}
 
 		if (!_points.TryGetValue(dbPoint.Id, out GpioPoint? gpioPoint))
 		{
-			_logger.LogWarning("Server GPIO point control could not find initialised point {PointId} ({PointName}) on device {DeviceId}.",
+			_logger.LogWarning("Server point control could not find initialised point {PointId} ({PointName}) on device {DeviceId}.",
 				dbPoint.Id, dbPoint.Name, _deviceId);
 			return PeerMessages.CreatePointStatus(dbPoint.Id, dbPoint.Status);
 		}
@@ -212,7 +212,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		dbPoint.TimeStamp = DateTime.UtcNow;
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		_logger.LogInformation("Server GPIO controlled output point {PointId} ({PointName}) on device {DeviceId}: {Status}.",
+		_logger.LogInformation("Server controlled output point {PointId} ({PointName}) on device {DeviceId}: {Status}.",
 			dbPoint.Id, dbPoint.Name, _deviceId, status);
 
 		return PeerMessages.CreatePointStatus(dbPoint.Id, status);
@@ -243,7 +243,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 				break;
 
 			default:
-				_logger.LogError("Server GPIO point {PointId} ({PointName}) uses unsupported point type {PointType}.",
+				_logger.LogError("Server point {PointId} ({PointName}) uses unsupported point type {PointType}.",
 					point.Id, point.Name, point.TypeId);
 				break;
 		}
@@ -258,7 +258,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		if (!TryReadPin(point.Address, out int pinNumber))
 		{
-			_logger.LogWarning("Server GPIO point {PointId} ({PointName}) has invalid GPIO pin address '{PointAddress}'.",
+			_logger.LogWarning("Server point {PointId} ({PointName}) has invalid GPIO pin address '{PointAddress}'.",
 				point.Id, point.Name, point.Address);
 			return;
 		}
@@ -375,7 +375,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "Server GPIO point {PointId} ({PointName}) poll failed.",
+			_logger.LogWarning(ex, "Server point {PointId} ({PointName}) poll failed.",
 				point.Id, point.Name);
 			return point.CurrentStatus;
 		}

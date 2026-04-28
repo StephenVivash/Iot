@@ -87,7 +87,7 @@ public sealed class PeerServerService
 		_connectionService.ApplyKnownPeerName(connection);
 
 		_connectionRegistry.Register(connection);
-		_logger.LogWarning("Server registered accepted client {RemotePeer}. Connected clients: {ConnectedClientCount}.",
+		_logger.LogWarning("Server accepted registered client {RemotePeer}. Connected clients: {ConnectedClientCount}.",
 			connection.RemoteDisplayName, _connectionRegistry.CountByRole(PeerRole.Server));
 
 		try
@@ -207,7 +207,7 @@ public sealed class PeerServerService
 			? string.Empty
 			: $" {point.Units}";
 
-		_logger.LogInformation("Server processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
+		_logger.LogInformation("Server received point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
 			connection.RemoteDisplayName, point.Name, point.Id, point.Status, units);
 
 		await RelayPointStatusToConnectedPeersAsync(connection, pointStatus);
@@ -225,7 +225,7 @@ public sealed class PeerServerService
 		if (peerConnections.Length == 0)
 			return;
 
-		_logger.LogInformation("Server relaying point status from {RemotePeer} to {ConnectedPeerCount} connected peers.",
+		_logger.LogDebug("Server relaying point status from {RemotePeer} to {ConnectedPeerCount} connected peers.",
 			sourceConnection.RemoteDisplayName, peerConnections.Length);
 
 		foreach (PeerConnection peerConnection in peerConnections)
@@ -266,12 +266,12 @@ public sealed class PeerServerService
 
 		if (route is null)
 		{
-			_logger.LogWarning("Server received point control from {RemotePeer} for point {PointId}, but no route is available.",
-				sourceConnection.RemoteDisplayName, pointControl.Id);
+			//_logger.LogWarning("Server received point control from {RemotePeer} for point {PointId}, but no route is available.",
+			//	sourceConnection.RemoteDisplayName, pointControl.Id);
 			return;
 		}
 
-		_logger.LogInformation("Server relaying point control from {RemotePeer} to {NextHopPeer}. Device: {TargetDeviceName} Point {PointId}: {Status}.",
+		_logger.LogDebug("Server relaying point control from {RemotePeer} to {NextHopPeer}. Device: {TargetDeviceName} Point {PointId}: {Status}.",
 			sourceConnection.RemoteDisplayName, route.Connection.RemoteDisplayName, route.TargetDeviceName, pointControl.Id, pointControl.Status);
 
 		PeerConnection peerConnection = route.Connection;

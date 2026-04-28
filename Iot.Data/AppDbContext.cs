@@ -73,15 +73,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 			new(4, 1, "piz22", "Raspberry Pi 2 Zero server", eDeviceType.eNetServer, ""),
 			new(5, 1, "koala", "Windows server", eDeviceType.eNetServer, ""),
 			new(6, 1, "wallaby", "Windows server", eDeviceType.eNetServer, ""),
-			new(7, 1, "nanodevice_FB2F18", "ESP32 Nano server", eDeviceType.eNanoServer, ""),
-			new(8, 1, "nanodevice_1", "ESP32 Nano server", eDeviceType.eNanoServer, ""),
-			new(9, 3, "nanodevice_2E3658", "ESP32-S3 Nano server", eDeviceType.eNanoServer, ""),
-			new(10, 1, "nanodevice_3", "ESP32-S3 Nano server", eDeviceType.eNanoServer, ""),
-			new(11, 1, "esp32-AD3260", "ESP32 LoRa server", eDeviceType.eLoRaServer, ""),
-			new(12, 11, "esp32-AC85DC", "ESP32 LoRa server", eDeviceType.eLoRaServer, ""),
+			new(7, 1, "nano7", "ESP32-S3 Nano server FB2F18", eDeviceType.eNanoServer, ""),
+			new(8, 1, "nano8", "ESP32 Nano server", eDeviceType.eNanoServer, ""),
+			new(9, 1, "nano9", "ESP32 Nano server 2E3658", eDeviceType.eNanoServer, ""),
+			new(10, 1, "nano10", "ESP32-S3 Nano server", eDeviceType.eNanoServer, ""),
+			new(11, 1, "lora1", "ESP32 LoRa server AD3260", eDeviceType.eLoRaServer, ""),
+			new(12, 11, "lora2", "ESP32 LoRa server AC85DC", eDeviceType.eLoRaServer, ""),
 			new(13, 1, "Koala Client", "Windows client", eDeviceType.eClient, ""),
 			new(14, 1, "OPPO Client", "Android client", eDeviceType.eClient, ""),
-			new(15, 1, "stm32_1", "STM32 Nano server", eDeviceType.eNanoServer, "")
+			new(15, 1, "stm321", "STM32 Nano server", eDeviceType.eNanoServer, "")
 		];
 
 		Devices.AddRange(devices);
