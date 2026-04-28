@@ -254,7 +254,7 @@ public sealed class PeerClientService
 			string units = string.IsNullOrWhiteSpace(point.Units)
 				? string.Empty: $" {point.Units}";
 
-			_logger.LogInformation("Client processed point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
+			_logger.LogInformation("Client received point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
 				connection.RemoteDisplayName, point.Name, point.Id,	point.Status, units);
 
 			await RelayPointStatusToConnectedClientsAsync(connection, pointStatus);
@@ -317,7 +317,7 @@ public sealed class PeerClientService
 		if (clientConnections.Count == 0)
 			return;
 
-		_logger.LogInformation("Server relaying point status from {RemotePeer} to {ConnectedClientCount} connected clients.",
+		_logger.LogDebug("Server relaying point status from {RemotePeer} to {ConnectedClientCount} connected clients.",
 			sourceConnection.RemoteDisplayName, clientConnections.Count);
 
 		foreach (PeerConnection clientConnection in clientConnections)
@@ -363,7 +363,7 @@ public sealed class PeerClientService
 			return;
 		}
 
-		_logger.LogInformation("Client relaying point control from {RemotePeer} to {NextHopPeer}. Device: {TargetDeviceName} Point {PointId}: {Status}.",
+		_logger.LogDebug("Client relaying point control from {RemotePeer} to {NextHopPeer}. Device: {TargetDeviceName} Point {PointId}: {Status}.",
 			sourceConnection.RemoteDisplayName, route.Connection.RemoteDisplayName, route.TargetDeviceName, pointControl.Id, pointControl.Status);
 
 		PeerConnection clientConnection = route.Connection;

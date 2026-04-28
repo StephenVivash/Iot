@@ -22,7 +22,7 @@ namespace Iot.Server.Nano
 		public static void Main()
 		{
 			NanoLog log = new NanoLog("Iot.Server.Nano");
-			string peerName = "nanodevice_" + DeviceId.ToString();
+			string peerName = "nano" + DeviceId.ToString();
 
 			log.Warn("Host name: " + peerName);
 			EnsureWifiConnected(log);

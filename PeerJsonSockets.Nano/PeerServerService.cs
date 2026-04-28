@@ -74,7 +74,7 @@ namespace PeerJsonSockets.Nano
 			PeerConnection connection = new PeerConnection(Guid.NewGuid().ToString(), peer, PeerRole.Server);
 			_connectionService.ApplyKnownPeerName(connection);
 			_connectionRegistry.Register(connection);
-			_log.Warn("Server registered accepted client " + connection.RemoteDisplayName + ". Connected clients: " + _connectionRegistry.CountByRole(PeerRole.Server).ToString() + ".");
+			_log.Warn("Server accepted registered client " + connection.RemoteDisplayName + ". Connected clients: " + _connectionRegistry.CountByRole(PeerRole.Server).ToString() + ".");
 
 			try
 			{
