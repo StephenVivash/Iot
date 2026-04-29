@@ -55,8 +55,8 @@ namespace Iot.Server.Nano
 				WithStatuses(new PointDefinition(5, 10, "Pwm1", PointType.PwmOutput, "4"), "Off", "On"),
 				WithScale(new PointDefinition(6, 7, "Supply", PointType.AnalogInput, "PIN=35"), 0.000805, "Volts"),
 				WithScale(new PointDefinition(7, 7, "Cpu Temp", PointType.AnalogInput, "PIN=34"), 0.02444, "C"),
-				WithStatuses(new PointDefinition(8, 12, "LoRa1 Led1", PointType.DigitalOutput, "4"), "Off", "On"),
-				WithStatuses(new PointDefinition(9, 11, "LoRa2 Led1", PointType.DigitalOutput, "4"), "Off", "On"),
+				WithStatuses(new PointDefinition(8, 11, "Lora1 Led1", PointType.DigitalOutput, "4"), "Off", "On"),
+				WithStatuses(new PointDefinition(9, 12, "Lora2 Led1", PointType.DigitalOutput, "4"), "Off", "On"),
 				new PointDefinition(10, 2, "Bmp280", PointType.Bmp280, "SDA=3,SCL=2"),
 				WithStatuses(new PointDefinition(11, 10, "Pwm2", PointType.PwmOutput, "5"), "Off", "On"),
 				WithStatuses(new PointDefinition(12, 7, "6501", PointType.DigitalOutput, "26"), "Low", "High"),
@@ -78,6 +78,8 @@ namespace Iot.Server.Nano
 				WithStatuses(new PointDefinition(28, 1, "Pi51 Light1C", PointType.DigitalOutput, "20"), "Off", "On"),
 				WithStatuses(new PointDefinition(29, 3, "Piz21 Light1S", PointType.DigitalInput, "19"), "Off", "On"),
 				WithStatuses(new PointDefinition(30, 3, "Piz21 Light1C", PointType.DigitalOutput, "20"), "Off", "On"),
+				WithStatuses(new PointDefinition(31, 8, "Light1", PointType.DigitalInput, "4"), "Off", "On"),
+				WithStatuses(new PointDefinition(32, 8, "Led1", PointType.DigitalOutput, "5"), "Off", "On"),
 			};
 
 			return new NanoPointStore(points);

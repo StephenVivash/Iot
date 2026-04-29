@@ -247,6 +247,13 @@ public sealed class PeerClientService
 				return;
 			}
 
+			if (string.Equals(point.Status, pointStatus.Status, StringComparison.Ordinal))
+			{
+				_logger.LogDebug("Client ignored unchanged point status from {RemotePeer}. {PointName} ({PointId}): {Status}.",
+					connection.RemoteDisplayName, point.Name, point.Id, pointStatus.Status);
+				return;
+			}
+
 			point.Status = pointStatus.Status;
 			point.TimeStamp = DateTime.UtcNow;
 			await dbContext.SaveChangesAsync(connection.CancellationToken);
