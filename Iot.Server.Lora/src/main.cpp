@@ -37,6 +37,7 @@
 #define LORA_LED_PIN 4
 #define LORA_PACKET_MAX 240
 #define SEEN_MESSAGE_COUNT 24
+#define DISPLAY_LOG_LINES 6
 
 struct PointDefinition
 {
@@ -55,13 +56,75 @@ static PointDefinition points[] = {
 };
 
 WiFiClient upstreamClient;
+OLED_CLASS_OBJ display(OLED_ADDRESS, OLED_SDA, OLED_SCL);
 String upstreamBuffer;
 String seenMessageIds[SEEN_MESSAGE_COUNT];
+String displayLogLines[DISPLAY_LOG_LINES];
 int nextSeenMessageId = 0;
 unsigned long nextWifiConnectAttempt = 0;
 unsigned long nextPollAt = 0;
 unsigned long nextStatusAt = 0;
 bool ledStatus = false;
+bool displayReady = false;
+
+static String compactLogLine(const String& line)
+{
+	const int maxLength = 21;
+	if (line.length() <= maxLength)
+		return line;
+
+	return line.substring(0, maxLength);
+}
+
+static void renderDisplayLog()
+{
+	if (!displayReady)
+		return;
+
+	display.clear();
+	display.setTextAlignment(TEXT_ALIGN_LEFT);
+	display.setFont(ArialMT_Plain_10);
+	for (int i = 0; i < DISPLAY_LOG_LINES; i++)
+		display.drawString(0, i * 10, displayLogLines[i]);
+	display.display();
+}
+
+static void logEvent(const String& line)
+{
+	Serial.println(line);
+	for (int i = 0; i < DISPLAY_LOG_LINES - 1; i++)
+		displayLogLines[i] = displayLogLines[i + 1];
+
+	displayLogLines[DISPLAY_LOG_LINES - 1] = compactLogLine(line);
+	renderDisplayLog();
+}
+
+static void initialiseDisplay()
+{
+	if (OLED_RST > 0)
+	{
+		pinMode(OLED_RST, OUTPUT);
+		digitalWrite(OLED_RST, HIGH);
+		delay(100);
+		digitalWrite(OLED_RST, LOW);
+		delay(100);
+		digitalWrite(OLED_RST, HIGH);
+	}
+
+	displayReady = display.init();
+	if (!displayReady)
+	{
+		Serial.println("OLED init failed.");
+		return;
+	}
+
+	display.flipScreenVertically();
+	display.clear();
+	display.setTextAlignment(TEXT_ALIGN_LEFT);
+	display.setFont(ArialMT_Plain_16);
+	display.display();
+	logEvent(String(IOT_PEER_NAME) + " display ready");
+}
 
 static PointDefinition* findPoint(int pointId)
 {
@@ -145,7 +208,7 @@ static void applyLocalPointControl(const PointDefinition& point, const char* req
 
 	ledStatus = isActiveStatus(requestedStatus, point.status1);
 	digitalWrite(point.pin, ledStatus ? HIGH : LOW);
-	Serial.printf("Point %d %s: %s\n", point.id, point.name, currentLedStatus());
+	logEvent("Point " + String(point.id) + " " + currentLedStatus());
 }
 
 static String createMessage(const char* type, JsonDocument& payload)
@@ -173,13 +236,14 @@ static void sendLoraLine(const String& json)
 {
 	if (json.length() > LORA_PACKET_MAX)
 	{
-		Serial.printf("LoRa packet too large: %u bytes\n", json.length());
+		logEvent("LoRa tx too large " + String(json.length()));
 		return;
 	}
 
 	LoRa.beginPacket();
 	LoRa.print(json);
 	LoRa.endPacket();
+	logEvent("LoRa tx " + String(json.length()) + "b");
 }
 
 static void sendPointStatus(const PointDefinition& point)
@@ -188,6 +252,7 @@ static void sendPointStatus(const PointDefinition& point)
 	payload["id"] = point.id;
 	payload["status"] = currentLedStatus();
 	String json = createMessage("point.status", payload);
+	logEvent("Status p" + String(point.id) + "=" + currentLedStatus());
 
 	sendWifiLine(json);
 #if IOT_ENABLE_WIFI
@@ -237,7 +302,7 @@ static void handleMessage(const String& json, bool fromLora)
 	DeserializationError error = deserializeJson(message, json);
 	if (error)
 	{
-		Serial.printf("Invalid JSON: %s\n", error.c_str());
+		logEvent("JSON error " + String(error.c_str()));
 		return;
 	}
 
@@ -247,6 +312,7 @@ static void handleMessage(const String& json, bool fromLora)
 		return;
 
 	JsonObject payload = message["payload"].as<JsonObject>();
+	logEvent(String(fromLora ? "LoRa rx " : "WiFi rx ") + type);
 	if (strcmp(type, "point.control") == 0)
 	{
 		int pointId = payload["id"] | 0;
@@ -298,7 +364,7 @@ static void pumpLora()
 	while (LoRa.available())
 		json += static_cast<char>(LoRa.read());
 
-	Serial.printf("LoRa rx RSSI %d: %s\n", LoRa.packetRssi(), json.c_str());
+	logEvent("LoRa rssi " + String(LoRa.packetRssi()));
 	handleMessage(json, true);
 }
 
@@ -329,14 +395,16 @@ static void pumpWifi()
 		return;
 
 	nextWifiConnectAttempt = millis() + 10000;
-	Serial.printf("Connecting upstream %s:%d\n", IOT_UPSTREAM_HOST, IOT_UPSTREAM_PORT);
+	logEvent("Upstream connect");
 	if (!upstreamClient.connect(IOT_UPSTREAM_HOST, IOT_UPSTREAM_PORT))
 	{
 		upstreamClient.stop();
+		logEvent("Upstream failed");
 		return;
 	}
 
 	upstreamClient.setNoDelay(true);
+	logEvent("Upstream ready");
 	sendHandshake();
 	delay(100);
 	sendPeerStatus();
@@ -348,20 +416,20 @@ static void initialiseWifi()
 #if IOT_ENABLE_WIFI
 	if (strlen(IOT_WIFI_SSID) == 0)
 	{
-		Serial.println("WiFi disabled: IOT_WIFI_SSID is empty.");
+		logEvent("WiFi disabled");
 		return;
 	}
 
 	WiFi.mode(WIFI_STA);
 	WiFi.begin(IOT_WIFI_SSID, IOT_WIFI_PASSWORD);
-	Serial.printf("Connecting WiFi SSID %s", IOT_WIFI_SSID);
+	logEvent("WiFi connecting");
 	while (WiFi.status() != WL_CONNECTED)
 	{
 		delay(500);
 		Serial.print(".");
 	}
 
-	Serial.printf("\nWiFi connected: %s\n", WiFi.localIP().toString().c_str());
+	logEvent("WiFi " + WiFi.localIP().toString());
 #endif
 }
 
@@ -375,7 +443,7 @@ static void initialiseLora()
 	LoRa.setPreambleLength(8);
 	if (!LoRa.begin(BAND))
 	{
-		Serial.println("Starting LoRa failed.");
+		logEvent("LoRa failed");
 		while (true)
 			delay(1000);
 	}
@@ -383,6 +451,7 @@ static void initialiseLora()
 	LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
 	LoRa.setSyncWord(0x12);
 	LoRa.enableCrc();
+	logEvent("LoRa ready");
 }
 
 void setup()
@@ -390,6 +459,8 @@ void setup()
 	Serial.begin(115200);
 	delay(200);
 	Serial.printf("\n%s starting as device %d\n", IOT_PEER_NAME, IOT_DEVICE_ID);
+	initialiseDisplay();
+	logEvent("Device " + String(IOT_DEVICE_ID));
 
 	pinMode(LORA_LED_PIN, OUTPUT);
 	digitalWrite(LORA_LED_PIN, LOW);
