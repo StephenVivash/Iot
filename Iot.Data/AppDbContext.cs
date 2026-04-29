@@ -96,8 +96,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 			new(5, 10, "Pwm1", "Pwm1 Test", ePointType.ePwmOutput, "4") { Status = "", Status0 = "Off", Status1 = "On" },
 			new(6, 7, "Supply", "Supply Voltage Test", ePointType.eAnalogInput, "35") { Scale = 0.000805, Units = "Volts" },
 			new(7, 7, "Cpu Temp", "Cpu Temp Test", ePointType.eAnalogInput, "34") { Scale = 0.02444, Units = "°C" },
-			new(8, 11, "LoRa1 Led1", "LoRa1 Led1 Test", ePointType.eDigitalOutput, "4") { Status0 = "Off", Status1 = "On" },
-			new(9, 12, "LoRa2 Led1", "LoRa2 Led1 Test", ePointType.eDigitalOutput, "4") { Status0 = "Off", Status1 = "On" },
+			new(8, 11, "Lora1 Led1", "Lora1 Led1 Test", ePointType.eDigitalOutput, "4") { Status0 = "Off", Status1 = "On" },
+			new(9, 12, "Lora2 Led1", "Lora2 Led1 Test", ePointType.eDigitalOutput, "4") { Status0 = "Off", Status1 = "On" },
 			new(10, 2, "Bmp280", "Bmp280 Test", ePointType.eBmp280, "SDA=3,SCL=2"),
 			new(11, 10, "Pwm2", "Pwm2 Test", ePointType.ePwmOutput, "5") { Status = "", Status0 = "Off", Status1 = "On" },
 			new(12, 7, "6501", "6501 Test", ePointType.eDigitalOutput, "26") { Status0 = "Low", Status1 = "High" },
@@ -121,6 +121,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
 			new(29, 3, "Piz21 Light1S", "Piz21 Light1S Test", ePointType.eDigitalInput, "19") { Status0 = "Off", Status1 = "On" },
 			new(30, 3, "Piz21 Light1C", "Piz21 Light1C Test", ePointType.eDigitalOutput, "20") { Status0 = "Off", Status1 = "On" },
+
+			new(31, 8, "Light1", "Piz21 Light1S Test", ePointType.eDigitalInput, "4") { Status0 = "Off", Status1 = "On" },
+			new(32, 8, "Led1", "Piz21 Light1C Test", ePointType.eDigitalOutput, "5") { Status0 = "Off", Status1 = "On" },
 		];
 
 		Points.AddRange(points);

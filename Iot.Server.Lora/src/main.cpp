@@ -51,8 +51,8 @@ struct PointDefinition
 };
 
 static PointDefinition points[] = {
-	{8, 11, "LoRa1 Led1", LORA_LED_PIN, "Off", "On", true},
-	{9, 12, "LoRa2 Led1", LORA_LED_PIN, "Off", "On", true},
+	{8, 11, "Lora1 Led1", LORA_LED_PIN, "Off", "On", true},
+	{9, 12, "Lora2 Led1", LORA_LED_PIN, "Off", "On", true},
 };
 
 WiFiClient upstreamClient;
@@ -65,6 +65,7 @@ unsigned long nextWifiConnectAttempt = 0;
 unsigned long nextPollAt = 0;
 unsigned long nextStatusAt = 0;
 bool ledStatus = false;
+bool lastReportedLedStatus = false;
 bool displayReady = false;
 
 static String compactLogLine(const String& line)
@@ -262,6 +263,15 @@ static void sendPointStatus(const PointDefinition& point)
 #endif
 }
 
+static void sendPointStatusIfChanged(const PointDefinition& point)
+{
+	if (lastReportedLedStatus == ledStatus)
+		return;
+
+	sendPointStatus(point);
+	lastReportedLedStatus = ledStatus;
+}
+
 static void sendHandshake()
 {
 	JsonDocument payload;
@@ -322,7 +332,7 @@ static void handleMessage(const String& json, bool fromLora)
 		if (point != nullptr && isLocalPoint(*point))
 		{
 			applyLocalPointControl(*point, status);
-			sendPointStatus(*point);
+			sendPointStatusIfChanged(*point);
 			return;
 		}
 
@@ -480,17 +490,17 @@ void loop()
 	unsigned long now = millis();
 	if (now >= nextPollAt)
 	{
-		nextPollAt = now + 30000;
+		nextPollAt = now + 60000;
 		sendPoll();
 	}
 
 	if (now >= nextStatusAt)
 	{
-		nextStatusAt = now + 60000;
+		nextStatusAt = now + 1000;
 		for (PointDefinition& point : points)
 		{
 			if (isLocalPoint(point))
-				sendPointStatus(point);
+				sendPointStatusIfChanged(point);
 		}
 	}
 
