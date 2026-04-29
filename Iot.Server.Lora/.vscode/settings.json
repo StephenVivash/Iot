@@ -1,0 +1,10 @@
+{
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "*.asm": "asm",
+        "*.tcc": "c",
+        "cstdio": "c",
+        "esp32-hal.h": "c",
+        "stdlib.h": "c"
+    }
+}
