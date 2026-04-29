@@ -38,6 +38,8 @@
 #define LORA_PACKET_MAX 240
 #define SEEN_MESSAGE_COUNT 24
 #define DISPLAY_LOG_LINES 6
+#define LORA_ACK_TIMEOUT_MS 5000
+#define LORA_MAX_SEND_ATTEMPTS 4
 
 struct PointDefinition
 {
@@ -50,6 +52,17 @@ struct PointDefinition
 	bool output;
 };
 
+struct PendingLoraMessage
+{
+	bool active;
+	String json;
+	String id;
+	String type;
+	int attempts;
+	unsigned long nextAttemptAt;
+	bool localStatusReport;
+};
+
 static PointDefinition points[] = {
 	{8, 11, "Lora1 Led1", LORA_LED_PIN, "Off", "On", true},
 	{9, 12, "Lora2 Led1", LORA_LED_PIN, "Off", "On", true},
@@ -60,6 +73,7 @@ OLED_CLASS_OBJ display(OLED_ADDRESS, OLED_SDA, OLED_SCL);
 String upstreamBuffer;
 String seenMessageIds[SEEN_MESSAGE_COUNT];
 String displayLogLines[DISPLAY_LOG_LINES];
+PendingLoraMessage pendingLoraMessage = {};
 int nextSeenMessageId = 0;
 unsigned long nextWifiConnectAttempt = 0;
 unsigned long nextPollAt = 0;
@@ -212,16 +226,20 @@ static void applyLocalPointControl(const PointDefinition& point, const char* req
 	logEvent("Point " + String(point.id) + " " + currentLedStatus());
 }
 
-static String createMessage(const char* type, JsonDocument& payload)
+static String createMessage(const char* type, JsonDocument& payload, String* messageId = nullptr)
 {
+	String id = newMessageId();
 	JsonDocument message;
 	message["type"] = type;
 	message["payload"] = payload.as<JsonVariant>();
-	message["id"] = newMessageId();
+	message["id"] = id;
 	message["sentAtUtc"] = "1970-01-01T00:00:00+00:00";
 
 	String json;
 	serializeJson(message, json);
+	if (messageId != nullptr)
+		*messageId = id;
+
 	return json;
 }
 
@@ -233,42 +251,124 @@ static void sendWifiLine(const String& json)
 #endif
 }
 
-static void sendLoraLine(const String& json)
+static bool sendRawLoraLine(const String& json)
 {
 	if (json.length() > LORA_PACKET_MAX)
 	{
 		logEvent("LoRa tx too large " + String(json.length()));
-		return;
+		return false;
 	}
 
 	LoRa.beginPacket();
 	LoRa.print(json);
 	LoRa.endPacket();
 	logEvent("LoRa tx " + String(json.length()) + "b");
+	return true;
 }
 
-static void sendPointStatus(const PointDefinition& point)
+static void sendLoraLine(const String& json)
+{
+	sendRawLoraLine(json);
+}
+
+static void clearPendingLoraMessage(bool retryLocalStatusLater)
+{
+	if (retryLocalStatusLater && pendingLoraMessage.localStatusReport)
+		lastReportedLedStatus = !ledStatus;
+
+	pendingLoraMessage.active = false;
+	pendingLoraMessage.json = "";
+	pendingLoraMessage.id = "";
+	pendingLoraMessage.type = "";
+	pendingLoraMessage.localStatusReport = false;
+}
+
+static void sendReliableLoraLine(const String& json, const char* messageId, const char* messageType, bool localStatusReport = false)
+{
+	if (messageId == nullptr || messageId[0] == '\0')
+	{
+		sendLoraLine(json);
+		return;
+	}
+
+	if (sendRawLoraLine(json))
+	{
+		if (pendingLoraMessage.active && pendingLoraMessage.id != messageId)
+		{
+			logEvent("LoRa pending replaced");
+			clearPendingLoraMessage(true);
+		}
+
+		pendingLoraMessage.active = true;
+		pendingLoraMessage.json = json;
+		pendingLoraMessage.id = messageId;
+		pendingLoraMessage.type = messageType == nullptr ? "" : messageType;
+		pendingLoraMessage.attempts = 1;
+		pendingLoraMessage.nextAttemptAt = millis() + LORA_ACK_TIMEOUT_MS;
+		pendingLoraMessage.localStatusReport = localStatusReport;
+	}
+}
+
+static void sendLoraAck(const char* messageId, const char* messageType)
+{
+	if (messageId == nullptr || messageId[0] == '\0')
+		return;
+
+	JsonDocument payload;
+	payload["ackId"] = messageId;
+	payload["ackType"] = messageType;
+	sendRawLoraLine(createMessage("message.ack", payload));
+}
+
+static void handleLoraAck(JsonObject payload)
+{
+	const char* ackId = payload["ackId"] | "";
+	if (!pendingLoraMessage.active || pendingLoraMessage.id != ackId)
+		return;
+
+	logEvent("LoRa ack " + pendingLoraMessage.type);
+	clearPendingLoraMessage(false);
+}
+
+static void pumpLoraRetries()
+{
+	if (!pendingLoraMessage.active || millis() < pendingLoraMessage.nextAttemptAt)
+		return;
+
+	if (pendingLoraMessage.attempts >= LORA_MAX_SEND_ATTEMPTS)
+	{
+		logEvent("LoRa no ack " + pendingLoraMessage.type);
+		clearPendingLoraMessage(true);
+		return;
+	}
+
+	pendingLoraMessage.attempts++;
+	pendingLoraMessage.nextAttemptAt = millis() + LORA_ACK_TIMEOUT_MS;
+	logEvent("LoRa retry " + String(pendingLoraMessage.attempts));
+	sendRawLoraLine(pendingLoraMessage.json);
+}
+
+static void sendPointStatus(const PointDefinition& point, bool toWifi, bool toLora)
 {
 	JsonDocument payload;
 	payload["id"] = point.id;
 	payload["status"] = currentLedStatus();
-	String json = createMessage("point.status", payload);
+	String messageId;
+	String json = createMessage("point.status", payload, &messageId);
 	logEvent("Status p" + String(point.id) + "=" + currentLedStatus());
 
-	sendWifiLine(json);
-#if IOT_ENABLE_WIFI
-	sendLoraLine(json);
-#else
-	sendLoraLine(json);
-#endif
+	if (toWifi)
+		sendWifiLine(json);
+	if (toLora)
+		sendReliableLoraLine(json, messageId.c_str(), "point.status", true);
 }
 
-static void sendPointStatusIfChanged(const PointDefinition& point)
+static void sendPointStatusIfChanged(const PointDefinition& point, bool toWifi, bool toLora)
 {
 	if (lastReportedLedStatus == ledStatus)
 		return;
 
-	sendPointStatus(point);
+	sendPointStatus(point, toWifi, toLora);
 	lastReportedLedStatus = ledStatus;
 }
 
@@ -285,6 +385,7 @@ static void sendHandshake()
 	types.add("peer.status");
 	types.add("point.status");
 	types.add("point.control");
+	types.add("message.ack");
 	sendWifiLine(createMessage("handshake", payload));
 }
 
@@ -318,10 +419,20 @@ static void handleMessage(const String& json, bool fromLora)
 
 	const char* type = message["type"] | "";
 	const char* id = message["id"] | "";
+	JsonObject payload = message["payload"].as<JsonObject>();
+
+	if (fromLora && strcmp(type, "message.ack") == 0)
+	{
+		handleLoraAck(payload);
+		return;
+	}
+
+	if (fromLora && (strcmp(type, "point.control") == 0 || strcmp(type, "point.status") == 0))
+		sendLoraAck(id, type);
+
 	if (!rememberMessageId(id))
 		return;
 
-	JsonObject payload = message["payload"].as<JsonObject>();
 	logEvent(String(fromLora ? "LoRa rx " : "WiFi rx ") + type);
 	if (strcmp(type, "point.control") == 0)
 	{
@@ -332,14 +443,21 @@ static void handleMessage(const String& json, bool fromLora)
 		if (point != nullptr && isLocalPoint(*point))
 		{
 			applyLocalPointControl(*point, status);
-			sendPointStatusIfChanged(*point);
+			logEvent(String(fromLora ? "Reply LoRa p" : "Reply WiFi p") + String(point->id));
+			sendPointStatusIfChanged(*point, !fromLora, fromLora);
 			return;
 		}
 
 		if (!fromLora && shouldForwardToLora(point))
-			sendLoraLine(json);
+		{
+			logEvent("Forward LoRa p" + String(pointId));
+			sendReliableLoraLine(json, id, type);
+		}
 		if (fromLora && shouldForwardToWifi(point))
+		{
+			logEvent("Forward WiFi p" + String(pointId));
 			sendWifiLine(json);
+		}
 		return;
 	}
 
@@ -348,9 +466,15 @@ static void handleMessage(const String& json, bool fromLora)
 		int pointId = payload["id"] | 0;
 		PointDefinition* point = findPoint(pointId);
 		if (fromLora && shouldForwardToWifi(point))
+		{
+			logEvent("Forward WiFi p" + String(pointId));
 			sendWifiLine(json);
+		}
 		if (!fromLora && shouldForwardToLora(point))
-			sendLoraLine(json);
+		{
+			logEvent("Forward LoRa p" + String(pointId));
+			sendReliableLoraLine(json, id, type);
+		}
 		return;
 	}
 
@@ -486,6 +610,7 @@ void loop()
 {
 	pumpWifi();
 	pumpLora();
+	pumpLoraRetries();
 
 	unsigned long now = millis();
 	if (now >= nextPollAt)
@@ -500,7 +625,7 @@ void loop()
 		for (PointDefinition& point : points)
 		{
 			if (isLocalPoint(point))
-				sendPointStatusIfChanged(point);
+				sendPointStatusIfChanged(point, IOT_ENABLE_WIFI != 0, IOT_ENABLE_WIFI == 0);
 		}
 	}
 
