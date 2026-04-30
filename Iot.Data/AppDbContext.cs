@@ -124,6 +124,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
 			new(31, 8, "Light1", "Piz21 Light1S Test", ePointType.eDigitalInput, "4") { Status0 = "Off", Status1 = "On" },
 			new(32, 8, "Led1", "Piz21 Light1C Test", ePointType.eDigitalOutput, "5") { Status0 = "Off", Status1 = "On" },
+
+			new(33, 11, "Lora1 Light1", "Lora1 Light1 Test", ePointType.eDigitalInput, "5") { Status0 = "Off", Status1 = "On" },
+			new(34, 12, "Lora2 Light1", "Lora2 Light1 Test", ePointType.eDigitalInput, "5") { Status0 = "Off", Status1 = "On" },
 		];
 
 		Points.AddRange(points);

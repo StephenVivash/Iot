@@ -5,6 +5,7 @@
 #include <WiFi.h>
 
 #include "board_def.h"
+#include "PointStore.h"
 
 #ifndef IOT_PEER_NAME
 #define IOT_PEER_NAME "lora1"
@@ -34,23 +35,12 @@
 #define IOT_UPSTREAM_PORT 5050
 #endif
 
-#define LORA_LED_PIN 4
+//#define LORA_LED_PIN 4
 #define LORA_PACKET_MAX 240
 #define SEEN_MESSAGE_COUNT 24
 #define DISPLAY_LOG_LINES 6
 #define LORA_ACK_TIMEOUT_MS 5000
 #define LORA_MAX_SEND_ATTEMPTS 4
-
-struct PointDefinition
-{
-	int id;
-	int deviceId;
-	const char* name;
-	int pin;
-	const char* status0;
-	const char* status1;
-	bool output;
-};
 
 struct PendingLoraMessage
 {
@@ -63,10 +53,18 @@ struct PendingLoraMessage
 	bool localStatusReport;
 };
 
-static PointDefinition points[] = {
-	{8, 11, "Lora1 Led1", LORA_LED_PIN, "Off", "On", true},
-	{9, 12, "Lora2 Led1", LORA_LED_PIN, "Off", "On", true},
+struct LocalPointState
+{
+	const Point* point;
+	bool currentActive;
+	bool lastReportedActive;
 };
+
+static const int LOCAL_POINT_CAPACITY = 8;
+
+static PointStore pointStore = PointStore::CreateDefault();
+static LocalPointState localPoints[LOCAL_POINT_CAPACITY];
+static int localPointCount = 0;
 
 WiFiClient upstreamClient;
 OLED_CLASS_OBJ display(OLED_ADDRESS, OLED_SDA, OLED_SCL);
@@ -78,8 +76,6 @@ int nextSeenMessageId = 0;
 unsigned long nextWifiConnectAttempt = 0;
 unsigned long nextPollAt = 0;
 unsigned long nextStatusAt = 0;
-bool ledStatus = false;
-bool lastReportedLedStatus = false;
 bool displayReady = false;
 
 static String compactLogLine(const String& line)
@@ -141,23 +137,17 @@ static void initialiseDisplay()
 	logEvent(String(IOT_PEER_NAME) + " display ready");
 }
 
-static PointDefinition* findPoint(int pointId)
+static const Point* findPoint(int pointId)
 {
-	for (PointDefinition& point : points)
-	{
-		if (point.id == pointId)
-			return &point;
-	}
-
-	return nullptr;
+	return pointStore.Find(pointId);
 }
 
-static bool isLocalPoint(const PointDefinition& point)
+static bool isLocalPoint(const Point& point)
 {
 	return point.deviceId == IOT_DEVICE_ID;
 }
 
-static bool shouldForwardToLora(const PointDefinition* point)
+static bool shouldForwardToLora(const Point* point)
 {
 #if IOT_ENABLE_WIFI
 	return point == nullptr || point->deviceId != IOT_DEVICE_ID;
@@ -166,13 +156,30 @@ static bool shouldForwardToLora(const PointDefinition* point)
 #endif
 }
 
-static bool shouldForwardToWifi(const PointDefinition* point)
+static bool shouldForwardToWifi(const Point* point)
 {
 #if IOT_ENABLE_WIFI
 	return point == nullptr || point->deviceId != IOT_DEVICE_ID;
 #else
 	return false;
 #endif
+}
+
+static void writePointFields(JsonObject payload, const Point& point)
+{
+	payload["id"] = point.id;
+	payload["deviceId"] = point.deviceId;
+	payload["name"] = point.name;
+	payload["description"] = point.description;
+	payload["typeId"] = static_cast<int>(point.typeId);
+	payload["address"] = point.address;
+	payload["pin"] = point.pin;
+	payload["status"] = point.status;
+	payload["rawStatus"] = point.rawStatus;
+	payload["status0"] = point.status0;
+	payload["status1"] = point.status1;
+	payload["scale"] = point.scale;
+	payload["units"] = point.units;
 }
 
 static String newMessageId()
@@ -211,19 +218,46 @@ static bool isActiveStatus(const char* status, const char* activeStatus)
 		strcmp(status, "1") == 0;
 }
 
-static const char* currentLedStatus()
+static LocalPointState* findLocalPointState(const Point& point)
 {
-	return ledStatus ? "On" : "Off";
+	for (int i = 0; i < localPointCount; i++)
+	{
+		if (localPoints[i].point == &point || localPoints[i].point->id == point.id)
+			return &localPoints[i];
+	}
+
+	return nullptr;
 }
 
-static void applyLocalPointControl(const PointDefinition& point, const char* requestedStatus)
+static const char* currentPointStatus(const Point& point, bool active)
 {
-	if (!point.output)
+	return active ? point.status1 : point.status0;
+}
+
+static bool readLocalPointActive(const Point& point)
+{
+	return digitalRead(point.pin) == HIGH;
+}
+
+static void forceLocalStatusRetry()
+{
+	for (int i = 0; i < localPointCount; i++)
+		localPoints[i].lastReportedActive = !localPoints[i].currentActive;
+}
+
+static void applyLocalPointControl(const Point& point, const char* requestedStatus)
+{
+	if (point.typeId != DigitalOutput)
 		return;
 
-	ledStatus = isActiveStatus(requestedStatus, point.status1);
-	digitalWrite(point.pin, ledStatus ? HIGH : LOW);
-	logEvent("Point " + String(point.id) + " " + currentLedStatus());
+	bool active = isActiveStatus(requestedStatus, point.status1);
+	digitalWrite(point.pin, active ? HIGH : LOW);
+
+	LocalPointState* state = findLocalPointState(point);
+	if (state != nullptr)
+		state->currentActive = active;
+
+	logEvent("Point " + String(point.id) + " " + currentPointStatus(point, active));
 }
 
 static String createMessage(const char* type, JsonDocument& payload, String* messageId = nullptr)
@@ -241,6 +275,18 @@ static String createMessage(const char* type, JsonDocument& payload, String* mes
 		*messageId = id;
 
 	return json;
+}
+
+static String createPointStatusMessage(const Point& point, const char* status, bool includePointFields, String* messageId = nullptr)
+{
+	JsonDocument payload;
+	if (includePointFields)
+		writePointFields(payload.to<JsonObject>(), point);
+	else
+		payload["id"] = point.id;
+
+	payload["status"] = status;
+	return createMessage("point.status", payload, messageId);
 }
 
 static void sendWifiLine(const String& json)
@@ -274,7 +320,7 @@ static void sendLoraLine(const String& json)
 static void clearPendingLoraMessage(bool retryLocalStatusLater)
 {
 	if (retryLocalStatusLater && pendingLoraMessage.localStatusReport)
-		lastReportedLedStatus = !ledStatus;
+		forceLocalStatusRetry();
 
 	pendingLoraMessage.active = false;
 	pendingLoraMessage.json = "";
@@ -348,28 +394,42 @@ static void pumpLoraRetries()
 	sendRawLoraLine(pendingLoraMessage.json);
 }
 
-static void sendPointStatus(const PointDefinition& point, bool toWifi, bool toLora)
+static void sendPointStatus(const Point& point, bool toWifi, bool toLora)
 {
-	JsonDocument payload;
-	payload["id"] = point.id;
-	payload["status"] = currentLedStatus();
+	bool active = readLocalPointActive(point);
+	const char* status = currentPointStatus(point, active);
+	LocalPointState* state = findLocalPointState(point);
+	if (state != nullptr)
+		state->currentActive = active;
+
 	String messageId;
-	String json = createMessage("point.status", payload, &messageId);
-	logEvent("Status p" + String(point.id) + "=" + currentLedStatus());
+	logEvent("Status p" + String(point.id) + "=" + String(status));
 
 	if (toWifi)
-		sendWifiLine(json);
+		sendWifiLine(createPointStatusMessage(point, status, true));
 	if (toLora)
+	{
+		String json = createPointStatusMessage(point, status, false, &messageId);
 		sendReliableLoraLine(json, messageId.c_str(), "point.status", true);
+	}
 }
 
-static void sendPointStatusIfChanged(const PointDefinition& point, bool toWifi, bool toLora)
+static void sendPointStatusIfChanged(const Point& point, bool toWifi, bool toLora)
 {
-	if (lastReportedLedStatus == ledStatus)
+	LocalPointState* state = findLocalPointState(point);
+	if (state == nullptr)
+		return;
+
+	bool active = readLocalPointActive(point);
+	state->currentActive = active;
+	if (state->lastReportedActive == active)
+		return;
+
+	if (toLora && pendingLoraMessage.active)
 		return;
 
 	sendPointStatus(point, toWifi, toLora);
-	lastReportedLedStatus = ledStatus;
+	state->lastReportedActive = active;
 }
 
 static void sendHandshake()
@@ -438,10 +498,17 @@ static void handleMessage(const String& json, bool fromLora)
 	{
 		int pointId = payload["id"] | 0;
 		const char* status = payload["status"] | "";
-		PointDefinition* point = findPoint(pointId);
+		const Point* point = findPoint(pointId);
 
 		if (point != nullptr && isLocalPoint(*point))
 		{
+			if (point->typeId != DigitalOutput)
+			{
+				logEvent("Reject control p" + String(point->id));
+				sendPointStatus(*point, !fromLora, fromLora);
+				return;
+			}
+
 			applyLocalPointControl(*point, status);
 			logEvent(String(fromLora ? "Reply LoRa p" : "Reply WiFi p") + String(point->id));
 			sendPointStatusIfChanged(*point, !fromLora, fromLora);
@@ -464,11 +531,15 @@ static void handleMessage(const String& json, bool fromLora)
 	if (strcmp(type, "point.status") == 0)
 	{
 		int pointId = payload["id"] | 0;
-		PointDefinition* point = findPoint(pointId);
+		const char* status = payload["status"] | "";
+		const Point* point = findPoint(pointId);
 		if (fromLora && shouldForwardToWifi(point))
 		{
 			logEvent("Forward WiFi p" + String(pointId));
-			sendWifiLine(json);
+			if (point != nullptr)
+				sendWifiLine(createPointStatusMessage(*point, status, true));
+			else
+				sendWifiLine(json);
 		}
 		if (!fromLora && shouldForwardToLora(point))
 		{
@@ -567,6 +638,31 @@ static void initialiseWifi()
 #endif
 }
 
+static void initialiseLocalPoints()
+{
+	const Point* matches[LOCAL_POINT_CAPACITY];
+	size_t count = pointStore.GetForDevice(IOT_DEVICE_ID, matches, LOCAL_POINT_CAPACITY);
+	localPointCount = static_cast<int>(count > LOCAL_POINT_CAPACITY ? LOCAL_POINT_CAPACITY : count);
+
+	for (int i = 0; i < localPointCount; i++)
+	{
+		const Point* point = matches[i];
+		if (point->typeId == DigitalInput)
+			pinMode(point->pin, INPUT);
+		else if (point->typeId == DigitalOutput)
+		{
+			pinMode(point->pin, OUTPUT);
+			digitalWrite(point->pin, LOW);
+		}
+
+		bool active = readLocalPointActive(*point);
+		localPoints[i].point = point;
+		localPoints[i].currentActive = active;
+		localPoints[i].lastReportedActive = !active;
+		logEvent("Local point " + String(point->id) + " pin " + String(point->pin));
+	}
+}
+
 static void initialiseLora()
 {
 	SPI.begin(CONFIG_CLK, CONFIG_MISO, CONFIG_MOSI, CONFIG_NSS);
@@ -596,14 +692,12 @@ void setup()
 	initialiseDisplay();
 	logEvent("Device " + String(IOT_DEVICE_ID));
 
-	pinMode(LORA_LED_PIN, OUTPUT);
-	digitalWrite(LORA_LED_PIN, LOW);
-
+	initialiseLocalPoints();
 	initialiseLora();
 	initialiseWifi();
 
-	nextPollAt = millis() + 15000;
-	nextStatusAt = millis() + 3000;
+	nextPollAt = millis() + 60000;
+	nextStatusAt = millis() + 500;
 }
 
 void loop()
@@ -621,13 +715,13 @@ void loop()
 
 	if (now >= nextStatusAt)
 	{
-		nextStatusAt = now + 1000;
-		for (PointDefinition& point : points)
+		nextStatusAt = now + 500;
+		for (int i = 0; i < localPointCount; i++)
 		{
-			if (isLocalPoint(point))
-				sendPointStatusIfChanged(point, IOT_ENABLE_WIFI != 0, IOT_ENABLE_WIFI == 0);
+			const Point& point = *localPoints[i].point;
+			sendPointStatusIfChanged(point, IOT_ENABLE_WIFI != 0, IOT_ENABLE_WIFI == 0);
 		}
 	}
 
-	delay(10);
+
 }
