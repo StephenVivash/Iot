@@ -28,7 +28,7 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 		var points = await dbContext.Points
 			.AsNoTracking()
 			.Where(point => DeviceIds.Contains(point.DeviceId) &&
-				(point.TypeId == ePointType.eDigitalOutput || point.TypeId == ePointType.ePwmOutput))
+				(point.TypeId == PointType.DigitalOutput || point.TypeId == PointType.PwmOutput))
 			.OrderBy(point => point.DeviceId)
 			.ThenBy(point => point.Id)
 			.Select(point => new

@@ -4,11 +4,16 @@
 
 enum PointType
 {
-	DigitalInput = 0,
-	DigitalOutput = 1,
-	AnalogInput = 2,
-	AnalogOutput = 3,
-	PwmOutput = 4,
+	DigitalInput = 1,
+	DigitalOutput = 2,
+	AnalogInput = 3,
+	AnalogOutput = 4,
+	PwmOutput = 5,
+	Tm1637 = 6,
+	Bmp280 = 7,
+	ShiftInput = 8,
+	ShifOutput = 9,
+	Sequencer = 10
 };
 
 struct Point
