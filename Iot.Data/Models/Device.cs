@@ -1,5 +1,13 @@
 namespace Iot.Data.Models;
 
+public enum eDeviceType
+{
+	eNetServer,
+	eNanoServer,
+	eLoRaServer,
+	eClient
+}
+
 public sealed class Device
 {
     public Device()
