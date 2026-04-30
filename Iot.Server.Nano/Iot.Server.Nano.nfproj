@@ -20,7 +20,6 @@
   <ItemGroup>
     <Compile Include="PointStore.cs" />
     <Compile Include="Point.cs" />
-    <Compile Include="PointType.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServerGpioTask.cs" />
