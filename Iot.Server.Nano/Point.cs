@@ -29,6 +29,7 @@ namespace Iot.Server.Nano
 			Status1 = string.Empty;
 			Units = string.Empty;
 			Scale = 1;
+			Tolerance = 0;
 		}
 
 		public int Id { get; private set; }
@@ -41,5 +42,6 @@ namespace Iot.Server.Nano
 		public string Status1 { get; set; }
 		public string Units { get; set; }
 		public double Scale { get; set; }
+		public double Tolerance { get; set; }
 	}
 }

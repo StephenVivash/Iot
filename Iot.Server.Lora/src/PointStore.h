@@ -21,15 +21,13 @@ struct Point
 	int id;
 	int deviceId;
 	const char* name;
-	const char* description;
 	PointType typeId;
 	const char* address;
-	int pin;
 	const char* status;
-	double rawStatus;
 	const char* status0;
 	const char* status1;
 	double scale;
+	double tolerance;
 	const char* units;
 };
 

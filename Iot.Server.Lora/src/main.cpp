@@ -3,6 +3,7 @@
 #include <LoRa.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include <math.h>
 
 #include "board_def.h"
 #include "PointStore.h"
@@ -58,6 +59,9 @@ struct LocalPointState
 	const Point* point;
 	bool currentActive;
 	bool lastReportedActive;
+	double currentAnalogValue;
+	double lastReportedAnalogValue;
+	bool hasLastReportedAnalogValue;
 };
 
 static const int LOCAL_POINT_CAPACITY = 8;
@@ -170,15 +174,13 @@ static void writePointFields(JsonObject payload, const Point& point)
 	payload["id"] = point.id;
 	payload["deviceId"] = point.deviceId;
 	payload["name"] = point.name;
-	payload["description"] = point.description;
 	payload["typeId"] = static_cast<int>(point.typeId);
 	payload["address"] = point.address;
-	payload["pin"] = point.pin;
 	payload["status"] = point.status;
-	payload["rawStatus"] = point.rawStatus;
 	payload["status0"] = point.status0;
 	payload["status1"] = point.status1;
 	payload["scale"] = point.scale;
+	payload["tolerance"] = point.tolerance;
 	payload["units"] = point.units;
 }
 
@@ -234,15 +236,47 @@ static const char* currentPointStatus(const Point& point, bool active)
 	return active ? point.status1 : point.status0;
 }
 
+static int readPointPin(const Point& point)
+{
+	const char* address = point.address;
+	if (address == nullptr || address[0] == '\0')
+		return -1;
+
+	if (address[0] >= '0' && address[0] <= '9')
+		return atoi(address);
+
+	if (strncasecmp(address, "PIN=", 4) == 0)
+		return atoi(address + 4);
+
+	return -1;
+}
+
 static bool readLocalPointActive(const Point& point)
 {
-	return digitalRead(point.pin) == HIGH;
+	int pin = readPointPin(point);
+	return pin >= 0 && digitalRead(pin) == HIGH;
+}
+
+static double readLocalPointAnalogValue(const Point& point)
+{
+	int pin = readPointPin(point);
+	return pin >= 0 ? analogRead(pin) * point.scale : 0;
+}
+
+static String currentPointStatus(const Point& point, double value)
+{
+	return String(value, 2);
 }
 
 static void forceLocalStatusRetry()
 {
 	for (int i = 0; i < localPointCount; i++)
-		localPoints[i].lastReportedActive = !localPoints[i].currentActive;
+	{
+		if (localPoints[i].point->typeId == AnalogInput)
+			localPoints[i].hasLastReportedAnalogValue = false;
+		else
+			localPoints[i].lastReportedActive = !localPoints[i].currentActive;
+	}
 }
 
 static void applyLocalPointControl(const Point& point, const char* requestedStatus)
@@ -251,7 +285,9 @@ static void applyLocalPointControl(const Point& point, const char* requestedStat
 		return;
 
 	bool active = isActiveStatus(requestedStatus, point.status1);
-	digitalWrite(point.pin, active ? HIGH : LOW);
+	int pin = readPointPin(point);
+	if (pin >= 0)
+		digitalWrite(pin, active ? HIGH : LOW);
 
 	LocalPointState* state = findLocalPointState(point);
 	if (state != nullptr)
@@ -396,20 +432,31 @@ static void pumpLoraRetries()
 
 static void sendPointStatus(const Point& point, bool toWifi, bool toLora)
 {
-	bool active = readLocalPointActive(point);
-	const char* status = currentPointStatus(point, active);
 	LocalPointState* state = findLocalPointState(point);
-	if (state != nullptr)
-		state->currentActive = active;
+	String status;
+	if (point.typeId == AnalogInput)
+	{
+		double value = readLocalPointAnalogValue(point);
+		status = currentPointStatus(point, value);
+		if (state != nullptr)
+			state->currentAnalogValue = value;
+	}
+	else
+	{
+		bool active = readLocalPointActive(point);
+		status = currentPointStatus(point, active);
+		if (state != nullptr)
+			state->currentActive = active;
+	}
 
 	String messageId;
-	logEvent("Status p" + String(point.id) + "=" + String(status));
+	logEvent("Status p" + String(point.id) + "=" + status);
 
 	if (toWifi)
-		sendWifiLine(createPointStatusMessage(point, status, true));
+		sendWifiLine(createPointStatusMessage(point, status.c_str(), true));
 	if (toLora)
 	{
-		String json = createPointStatusMessage(point, status, false, &messageId);
+		String json = createPointStatusMessage(point, status.c_str(), false, &messageId);
 		sendReliableLoraLine(json, messageId.c_str(), "point.status", true);
 	}
 }
@@ -420,16 +467,34 @@ static void sendPointStatusIfChanged(const Point& point, bool toWifi, bool toLor
 	if (state == nullptr)
 		return;
 
-	bool active = readLocalPointActive(point);
-	state->currentActive = active;
-	if (state->lastReportedActive == active)
-		return;
+	if (point.typeId == AnalogInput)
+	{
+		double value = readLocalPointAnalogValue(point);
+		state->currentAnalogValue = value;
+		if (state->hasLastReportedAnalogValue && fabs(value - state->lastReportedAnalogValue) < point.tolerance)
+			return;
+	}
+	else
+	{
+		bool active = readLocalPointActive(point);
+		state->currentActive = active;
+		if (state->lastReportedActive == active)
+			return;
+	}
 
 	if (toLora && pendingLoraMessage.active)
 		return;
 
 	sendPointStatus(point, toWifi, toLora);
-	state->lastReportedActive = active;
+	if (point.typeId == AnalogInput)
+	{
+		state->lastReportedAnalogValue = state->currentAnalogValue;
+		state->hasLastReportedAnalogValue = true;
+	}
+	else
+	{
+		state->lastReportedActive = state->currentActive;
+	}
 }
 
 static void sendHandshake()
@@ -642,24 +707,50 @@ static void initialiseLocalPoints()
 {
 	const Point* matches[LOCAL_POINT_CAPACITY];
 	size_t count = pointStore.GetForDevice(IOT_DEVICE_ID, matches, LOCAL_POINT_CAPACITY);
-	localPointCount = static_cast<int>(count > LOCAL_POINT_CAPACITY ? LOCAL_POINT_CAPACITY : count);
+	int matchCount = static_cast<int>(count > LOCAL_POINT_CAPACITY ? LOCAL_POINT_CAPACITY : count);
+	localPointCount = 0;
 
-	for (int i = 0; i < localPointCount; i++)
+	for (int i = 0; i < matchCount; i++)
 	{
 		const Point* point = matches[i];
-		if (point->typeId == DigitalInput)
-			pinMode(point->pin, INPUT);
-		else if (point->typeId == DigitalOutput)
+		int pin = readPointPin(*point);
+		if (pin < 0)
 		{
-			pinMode(point->pin, OUTPUT);
-			digitalWrite(point->pin, LOW);
+			logEvent("Point " + String(point->id) + " bad address");
+			continue;
 		}
 
-		bool active = readLocalPointActive(*point);
-		localPoints[i].point = point;
-		localPoints[i].currentActive = active;
-		localPoints[i].lastReportedActive = !active;
-		logEvent("Local point " + String(point->id) + " pin " + String(point->pin));
+		if (point->typeId == DigitalInput)
+			pinMode(pin, INPUT);
+		else if (point->typeId == DigitalOutput)
+		{
+			pinMode(pin, OUTPUT);
+			digitalWrite(pin, LOW);
+		}
+		else if (point->typeId == AnalogInput)
+			pinMode(pin, INPUT);
+
+		LocalPointState& state = localPoints[localPointCount];
+		state.point = point;
+		state.hasLastReportedAnalogValue = false;
+		if (point->typeId == AnalogInput)
+		{
+			state.currentAnalogValue = readLocalPointAnalogValue(*point);
+			state.lastReportedAnalogValue = 0;
+			state.currentActive = false;
+			state.lastReportedActive = false;
+		}
+		else
+		{
+			bool active = readLocalPointActive(*point);
+			state.currentActive = active;
+			state.lastReportedActive = !active;
+			state.currentAnalogValue = 0;
+			state.lastReportedAnalogValue = 0;
+		}
+
+		localPointCount++;
+		logEvent("Local point " + String(point->id) + " pin " + String(pin));
 	}
 }
 

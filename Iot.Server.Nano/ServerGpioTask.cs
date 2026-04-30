@@ -48,13 +48,19 @@ namespace Iot.Server.Nano
 			foreach (GpioPoint point in _points.Values)
 			{
 				string status = PollPoint(point);
-				if (point.CurrentStatus == status)
+				if (!HasPointChanged(point, status))
 				{
 					continue;
 				}
 
 				_log.Info("Server GPIO point changed. " + point.Name + " (" + point.Id.ToString() + "): " + point.CurrentStatus + " -> " + status + ".");
 				point.CurrentStatus = status;
+				if (point.HasPolledAnalogValue)
+				{
+					point.CurrentAnalogValue = point.PolledAnalogValue;
+					point.HasCurrentAnalogValue = true;
+				}
+
 				point.Definition.Status = status;
 				changedStatuses.Add(PeerMessages.CreatePointStatus(point.Id, status));
 			}
@@ -219,6 +225,7 @@ namespace Iot.Server.Nano
 		{
 			try
 			{
+				point.HasPolledAnalogValue = false;
 				if (point.Type == PointType.DigitalInput || point.Type == PointType.DigitalOutput)
 				{
 					return PollDigitalPoint(point);
@@ -232,6 +239,8 @@ namespace Iot.Server.Nano
 				if (point.Type == PointType.AnalogInput && point.AdcChannel != null)
 				{
 					double value = point.AdcChannel.ReadValue() * point.Definition.Scale;
+					point.PolledAnalogValue = value;
+					point.HasPolledAnalogValue = true;
 					return value.ToString("N2");
 				}
 
@@ -242,6 +251,21 @@ namespace Iot.Server.Nano
 				_log.Error("Server GPIO point " + point.Id.ToString() + " poll failed.", ex);
 				return point.CurrentStatus;
 			}
+		}
+
+		private static bool HasPointChanged(GpioPoint point, string status)
+		{
+			if (point.Type != PointType.AnalogInput || point.Definition.Tolerance <= 0 || !point.HasPolledAnalogValue)
+			{
+				return point.CurrentStatus != status;
+			}
+
+			if (point.HasCurrentAnalogValue)
+			{
+				return Math.Abs(point.PolledAnalogValue - point.CurrentAnalogValue) >= point.Definition.Tolerance;
+			}
+
+			return point.CurrentStatus != status;
 		}
 
 		private static string PollDigitalPoint(GpioPoint point)
@@ -421,6 +445,7 @@ namespace Iot.Server.Nano
 				CurrentStatus = definition.Status;
 				Status0 = definition.Status0;
 				Status1 = definition.Status1;
+				HasCurrentAnalogValue = TryReadDouble(CurrentStatus, out CurrentAnalogValue);
 			}
 
 			public Point Definition;
@@ -435,6 +460,43 @@ namespace Iot.Server.Nano
 			public PwmChannel PwmChannel;
 			public AdcController AdcController;
 			public AdcChannel AdcChannel;
+			public double CurrentAnalogValue;
+			public bool HasCurrentAnalogValue;
+			public double PolledAnalogValue;
+			public bool HasPolledAnalogValue;
+
+			private static bool TryReadDouble(string value, out double result)
+			{
+				result = 0;
+				if (value == null || value.Length == 0)
+				{
+					return false;
+				}
+
+				try
+				{
+					result = double.Parse(RemoveThousandsSeparators(value));
+					return true;
+				}
+				catch
+				{
+					return false;
+				}
+			}
+
+			private static string RemoveThousandsSeparators(string value)
+			{
+				string result = string.Empty;
+				for (int i = 0; i < value.Length; i++)
+				{
+					if (value[i] != ',')
+					{
+						result += value[i].ToString();
+					}
+				}
+
+				return result;
+			}
 		}
 	}
 }

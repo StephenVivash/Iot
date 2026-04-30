@@ -53,8 +53,8 @@ namespace Iot.Server.Nano
 				WithStatuses(new Point(3, 7, "Radar", PointType.DigitalInput, "27"), "Ready", "Alert"),
 				WithStatuses(new Point(4, 7, "6502", PointType.DigitalInput, "13"), "Low", "High"),
 				WithStatuses(new Point(5, 10, "Pwm1", PointType.PwmOutput, "4"), "Off", "On"),
-				WithScale(new Point(6, 7, "Supply", PointType.AnalogInput, "PIN=35"), 0.000805, "Volts"),
-				WithScale(new Point(7, 7, "Cpu Temp", PointType.AnalogInput, "PIN=34"), 0.02444, "C"),
+				WithScale(new Point(6, 7, "Nano Supply", PointType.AnalogInput, "PIN=35"), 0.000805, 0.2, "Volts"),
+				WithScale(new Point(7, 7, "Nano Temp", PointType.AnalogInput, "PIN=34"), 0.02444, 10, "°C"),
 				WithStatuses(new Point(8, 11, "Lora1 Led1", PointType.DigitalOutput, "4"), "Off", "On"),
 				WithStatuses(new Point(9, 12, "Lora2 Led1", PointType.DigitalOutput, "4"), "Off", "On"),
 				new Point(10, 2, "Bmp280", PointType.Bmp280, "SDA=3,SCL=2"),
@@ -62,13 +62,13 @@ namespace Iot.Server.Nano
 				WithStatuses(new Point(12, 7, "6501", PointType.DigitalOutput, "26"), "Low", "High"),
 				WithStatuses(new Point(13, 9, "6401", PointType.DigitalOutput, "4"), "Low", "High"),
 				WithStatuses(new Point(14, 9, "6402", PointType.DigitalInput, "5"), "Low", "High"),
-				WithScale(new Point(15, 2, "Temperature", PointType.AnalogInput, "PID=10,TYP=TEM"),  1, "°C"),
-				WithScale(new Point(16, 2, "Pressure", PointType.AnalogInput, "PID=10,TYP=PRE"), 1, "mBars"),
-				WithScale(new Point(17, 2, "Altitude", PointType.AnalogInput, "PID=10,TYP=ALT"), 1, "Meters"),
+				WithScale(new Point(15, 2, "Temperature", PointType.AnalogInput, "PID=10,TYP=TEM"),  1, 0.5, "°C"),
+				WithScale(new Point(16, 2, "Pressure", PointType.AnalogInput, "PID=10,TYP=PRE"), 1, 0.5, "mBars"),
+				WithScale(new Point(17, 2, "Altitude", PointType.AnalogInput, "PID=10,TYP=ALT"), 1, 0.5, "Meters"),
 				new Point(18, 7, "Bmp280", PointType.Bmp280, "SDA=21,SCL=22"),
-				WithScale(new Point(19, 7, "Temperature", PointType.AnalogInput, "PID=18,TYP=TEM"), 1, "C"),
-				WithScale(new Point(20, 7, "Pressure", PointType.AnalogInput, "PID=18,TYP=PRE"), 1, "mBars"),
-				WithScale(new Point(21, 7, "Altitude", PointType.AnalogInput, "PID=18,TYP=ALT"), 1, "Meters"),
+				WithScale(new Point(19, 7, "Temperature", PointType.AnalogInput, "PID=18,TYP=TEM"), 1, 0.5, "°C"),
+				WithScale(new Point(20, 7, "Pressure", PointType.AnalogInput, "PID=18,TYP=PRE"), 1, 0.5, "mBars"),
+				WithScale(new Point(21, 7, "Altitude", PointType.AnalogInput, "PID=18,TYP=ALT"), 1, 0.5, "Meters"),
 				new Point(22, 7, "ShiftInput", PointType.ShiftInput, "LAT=12,CLK=25,DAT=33"),
 				WithStatuses(new Point(23, 7, "Shift Bit0", PointType.DigitalInput, "PID=22,BIT=0"), "Off", "On"),
 				WithStatuses(new Point(24, 7, "Shift Bit5", PointType.DigitalInput, "PID=22,BIT=5"), "Off", "On"),
@@ -80,6 +80,10 @@ namespace Iot.Server.Nano
 				WithStatuses(new Point(30, 3, "Piz21 Light1C", PointType.DigitalOutput, "20"), "Off", "On"),
 				WithStatuses(new Point(31, 8, "Light1", PointType.DigitalInput, "4"), "Off", "On"),
 				WithStatuses(new Point(32, 8, "Led1", PointType.DigitalOutput, "5"), "Off", "On"),
+				WithStatuses(new Point(33, 11, "Lora1 Light1", PointType.DigitalInput, "5"), "Off", "On"),
+				WithStatuses(new Point(34, 12, "Lora2 Light1", PointType.DigitalInput, "5"), "Off", "On"),
+				WithScale(new Point(35, 11, "Lora Supply", PointType.AnalogInput, "PIN=32"), 0.000805, 0.2, "Volts"),
+				WithScale(new Point(36, 11, "Lora Temp", PointType.AnalogInput, "PIN=33"), 0.02444, 10, "°C"),
 			};
 
 			return new PointStore(points);
@@ -92,9 +96,10 @@ namespace Iot.Server.Nano
 			return point;
 		}
 
-		private static Point WithScale(Point point, double scale, string units)
+		private static Point WithScale(Point point, double scale, double tolerance, string units)
 		{
 			point.Scale = scale;
+			point.Tolerance = tolerance;
 			point.Units = units;
 			return point;
 		}

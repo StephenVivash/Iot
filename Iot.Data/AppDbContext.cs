@@ -115,18 +115,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 			new(24, 7, "Shift Bit5", "Shift Bit5 Test", PointType.DigitalInput, "PID=22,BIT=5") { Status = "", Status0 = "Off", Status1 = "On" },
 			new(25, 2, "Pi31 Led1", "Pi31 Led1 Test", PointType.DigitalOutput, "18") { Status0 = "Off", Status1 = "On" },
 			new(26, 3, "Piz21 Led1", "Piz21 Led1 Test", PointType.DigitalOutput, "18") { Status0 = "Off", Status1 = "On" },
-
 			new(27, 1, "Pi51 Light1S", "Pi51 Light1S Test", PointType.DigitalInput, "19") { Status0 = "Off", Status1 = "On" },
 			new(28, 1, "Pi51 Light1C", "Pi51 Light1C Test", PointType.DigitalOutput, "20") { Status0 = "Off", Status1 = "On" },
-
 			new(29, 3, "Piz21 Light1S", "Piz21 Light1S Test", PointType.DigitalInput, "19") { Status0 = "Off", Status1 = "On" },
 			new(30, 3, "Piz21 Light1C", "Piz21 Light1C Test", PointType.DigitalOutput, "20") { Status0 = "Off", Status1 = "On" },
-
 			new(31, 8, "Light1", "Piz21 Light1S Test", PointType.DigitalInput, "4") { Status0 = "Off", Status1 = "On" },
 			new(32, 8, "Led1", "Piz21 Light1C Test", PointType.DigitalOutput, "5") { Status0 = "Off", Status1 = "On" },
-
 			new(33, 11, "Lora1 Light1", "Lora1 Light1 Test", PointType.DigitalInput, "5") { Status0 = "Off", Status1 = "On" },
 			new(34, 12, "Lora2 Light1", "Lora2 Light1 Test", PointType.DigitalInput, "5") { Status0 = "Off", Status1 = "On" },
+			new(35, 11, "Lora Supply", "Lora Supply Test", PointType.AnalogInput, "PIN=32") { Scale = 0.000805, Units = "Volts" },
+			new(36, 11, "Lora Temp", "Lora Temp Test", PointType.AnalogInput, "PIN=33") { Scale = 0.02444, Units = "°C" },
 		];
 
 		Points.AddRange(points);
