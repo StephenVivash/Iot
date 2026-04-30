@@ -1,8 +1,23 @@
 namespace Iot.Server.Nano
 {
-	public sealed class PointDefinition
+
+	public enum PointType
 	{
-		public PointDefinition(int id, int deviceId, string name, PointType type, string address)
+		DigitalInput = 1,
+		DigitalOutput = 2,
+		AnalogInput = 3,
+		AnalogOutput = 4,
+		PwmOutput = 5,
+		Tm1637 = 6,
+		Bmp280 = 7,
+		ShiftInput = 8,
+		ShifOutput = 9,
+		Sequencer = 10
+	}
+
+	public sealed class Point
+	{
+		public Point(int id, int deviceId, string name, PointType type, string address)
 		{
 			Id = id;
 			DeviceId = deviceId;
@@ -14,6 +29,7 @@ namespace Iot.Server.Nano
 			Status1 = string.Empty;
 			Units = string.Empty;
 			Scale = 1;
+			Tolerance = 0;
 		}
 
 		public int Id { get; private set; }
@@ -26,5 +42,6 @@ namespace Iot.Server.Nano
 		public string Status1 { get; set; }
 		public string Units { get; set; }
 		public double Scale { get; set; }
+		public double Tolerance { get; set; }
 	}
 }

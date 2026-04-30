@@ -1,12 +1,20 @@
 namespace Iot.Data.Models;
 
+public enum DeviceType
+{
+	NetServer,
+	NanoServer,
+	LoRaServer,
+	Client
+}
+
 public sealed class Device
 {
     public Device()
     {
     }
 
-    public Device(int id, int parentDeviceId, string name, string description, eDeviceType typeId, string status)
+    public Device(int id, int parentDeviceId, string name, string description, DeviceType typeId, string status)
     {
         Id = id;
         ParentDeviceId = parentDeviceId;

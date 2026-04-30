@@ -180,7 +180,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		if (dbPoint is null || dbPoint.DeviceId != _deviceId)
 			return null;
 
-		if (dbPoint.TypeId != ePointType.eDigitalOutput)
+		if (dbPoint.TypeId != PointType.DigitalOutput)
 		{
 			_logger.LogWarning("Server rejected point control for non-digital-output point {PointId} ({PointName}) on device {DeviceId}.",
 				dbPoint.Id, dbPoint.Name, _deviceId);
@@ -222,23 +222,23 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 	{
 		switch (point.TypeId)
 		{
-			case ePointType.eDigitalInput:
+			case PointType.DigitalInput:
 				OpenGpioPin(point, PinMode.Input);
 				break;
 
-			case ePointType.eDigitalOutput:
+			case PointType.DigitalOutput:
 				OpenGpioPin(point, PinMode.Output);
 				break;
 
-			case ePointType.ePwmOutput:
+			case PointType.PwmOutput:
 				InitialisePwmOutput(point);
 				break;
 
-			case ePointType.eTm1637:
+			case PointType.Tm1637:
 				InitialiseTm1637(point);
 				break;
 
-			case ePointType.eBmp280:
+			case PointType.Bmp280:
 				InitialiseI2cProbe(point);
 				break;
 
@@ -366,10 +366,10 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 		{
 			return point.TypeId switch
 			{
-				ePointType.eDigitalInput or ePointType.eDigitalOutput => PollDigitalPoint(point),
-				ePointType.ePwmOutput => point.PwmChannel is null ? point.CurrentStatus : "Ready",
-				ePointType.eTm1637 => point.Tm1637 is null ? point.CurrentStatus : (point.Tm1637.IsScreenOn ? "On" : "Off"),
-				ePointType.eBmp280 => point.I2cDevice is null ? point.CurrentStatus : "Ready",
+				PointType.DigitalInput or PointType.DigitalOutput => PollDigitalPoint(point),
+				PointType.PwmOutput => point.PwmChannel is null ? point.CurrentStatus : "Ready",
+				PointType.Tm1637 => point.Tm1637 is null ? point.CurrentStatus : (point.Tm1637.IsScreenOn ? "On" : "Off"),
+				PointType.Bmp280 => point.I2cDevice is null ? point.CurrentStatus : "Ready",
 				_ => point.CurrentStatus
 			};
 		}
@@ -434,7 +434,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 	private sealed class GpioPoint
 	{
-		public GpioPoint(int id, string name, ePointType typeId, string address, string currentStatus, string status0, string status1)
+		public GpioPoint(int id, string name, PointType typeId, string address, string currentStatus, string status0, string status1)
 		{
 			Id = id;
 			Name = name;
@@ -449,7 +449,7 @@ internal sealed class ServerGpioTask : IPeerServerLoopTask, IPeerPointControlHan
 
 		public string Name { get; }
 
-		public ePointType TypeId { get; }
+		public PointType TypeId { get; }
 
 		public string Address { get; }
 

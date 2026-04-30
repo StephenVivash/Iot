@@ -28,7 +28,7 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 		var points = await dbContext.Points
 			.AsNoTracking()
 			.Where(point => DeviceIds.Contains(point.DeviceId) &&
-				(point.TypeId == ePointType.eDigitalOutput || point.TypeId == ePointType.ePwmOutput))
+				(point.TypeId == PointType.DigitalOutput || point.TypeId == PointType.PwmOutput))
 			.OrderBy(point => point.DeviceId)
 			.ThenBy(point => point.Id)
 			.Select(point => new
@@ -49,12 +49,17 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			string offStatus = GetFallbackStatus(point.Status0, "Off");
-			string onStatus = GetFallbackStatus(point.Status1, "On");
+			//string offStatus = GetFallbackStatus(point.Status0, "Off");
+			//string onStatus = GetFallbackStatus(point.Status1, "On");
 
 			//string nextStatus = string.Equals(point.Status, onStatus, StringComparison.OrdinalIgnoreCase)
 			//	? offStatus
 			//	: onStatus;
+
+			//if (point.Status == point.Status0)
+			//	nextStatus = point.Status1;
+			//else
+			//	nextStatus = point.Status0;
 
 			_logger.LogInformation("MAUI test sending point control to device {DeviceId}. {PointName} ({PointId}): {Status}.",
 				point.DeviceId, point.Name, point.Id, nextStatus);

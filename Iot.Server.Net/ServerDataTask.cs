@@ -48,16 +48,16 @@ internal sealed class ServerDataTask : IPeerServerLoopTask
 			await context.SendToConnectedClientsAsync(PeerMessages.PointStatusType, pointStatus, cancellationToken);
 	}
 
-	private static string CreateRandomStatus(ePointType typeId, string currentStatus, string status0, string status1)
+	private static string CreateRandomStatus(PointType typeId, string currentStatus, string status0, string status1)
 	{
 		return typeId switch
 		{
-			ePointType.eDigitalInput or ePointType.eDigitalOutput =>
+			PointType.DigitalInput or PointType.DigitalOutput =>
 				Random.Shared.Next(0, 2) == 0
 					? GetFallbackStatus(status0, "Off")
 					: GetFallbackStatus(status1, "On"),
 
-			ePointType.eAnalogInput or ePointType.eAnalogOutput or ePointType.ePwmOutput =>
+			PointType.AnalogInput or PointType.AnalogOutput or PointType.PwmOutput =>
 				(Random.Shared.NextDouble() * 100).ToString("0.0", CultureInfo.InvariantCulture),
 
 			_ => currentStatus

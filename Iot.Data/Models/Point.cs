@@ -1,12 +1,26 @@
 namespace Iot.Data.Models;
 
+public enum PointType
+{
+	DigitalInput = 1,
+	DigitalOutput = 2,
+	AnalogInput = 3,
+	AnalogOutput = 4,
+	PwmOutput = 5,
+	Tm1637 = 6,
+	Bmp280 = 7,
+	ShiftInput = 8,
+	ShifOutput = 9,
+	Sequencer = 10
+}
+
 public sealed class Point
 {
     public Point()
     {
     }
 
-    public Point(int id, int deviceId, string name, string description, ePointType typeId, string address)
+    public Point(int id, int deviceId, string name, string description, PointType typeId, string address)
     {
         Id = id;
         DeviceId = deviceId;
@@ -31,7 +45,7 @@ public sealed class Point
 
     public string Description { get; set; } = string.Empty;
 
-    public ePointType TypeId { get; set; }
+    public PointType TypeId { get; set; }
 
     public string Address { get; set; } = string.Empty;
 
