@@ -18,8 +18,8 @@
   </PropertyGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
-    <Compile Include="NanoPointStore.cs" />
-    <Compile Include="PointDefinition.cs" />
+    <Compile Include="PointStore.cs" />
+    <Compile Include="Point.cs" />
     <Compile Include="PointType.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

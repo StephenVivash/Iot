@@ -11,13 +11,13 @@ namespace Iot.Server.Nano
 	{
 		private readonly NanoLog _log;
 		private readonly int _deviceId;
-		private readonly NanoPointStore _pointStore;
+		private readonly PointStore _pointStore;
 		private readonly Hashtable _points = new Hashtable();
 		private readonly GpioController _gpioController;
 		private AdcController _adcController;
 		private bool _initialiseGpioPointsAttempted;
 
-		public ServerGpioTask(NanoLog log, int deviceId, NanoPointStore pointStore)
+		public ServerGpioTask(NanoLog log, int deviceId, PointStore pointStore)
 		{
 			_log = log;
 			_deviceId = deviceId;
@@ -69,7 +69,7 @@ namespace Iot.Server.Nano
 		public PointStatus TryHandlePointControl(PointControl pointControl)
 		{
 			InitialiseGpioPoints();
-			PointDefinition point = _pointStore.Find(pointControl.id);
+			Point point = _pointStore.Find(pointControl.id);
 			if (point == null || point.DeviceId != _deviceId)
 			{
 				return null;
@@ -123,7 +123,7 @@ namespace Iot.Server.Nano
 			}
 
 			_initialiseGpioPointsAttempted = true;
-			PointDefinition[] points = _pointStore.GetForDevice(_deviceId);
+			Point[] points = _pointStore.GetForDevice(_deviceId);
 			for (int i = 0; i < points.Length; i++)
 			{
 				GpioPoint gpioPoint = new GpioPoint(points[i]);
@@ -411,7 +411,7 @@ namespace Iot.Server.Nano
 
 		private sealed class GpioPoint
 		{
-			public GpioPoint(PointDefinition definition)
+			public GpioPoint(Point definition)
 			{
 				Definition = definition;
 				Id = definition.Id;
@@ -423,7 +423,7 @@ namespace Iot.Server.Nano
 				Status1 = definition.Status1;
 			}
 
-			public PointDefinition Definition;
+			public Point Definition;
 			public int Id;
 			public string Name;
 			public PointType Type;

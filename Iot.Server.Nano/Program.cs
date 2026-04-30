@@ -30,7 +30,7 @@ namespace Iot.Server.Nano
 			PeerRuntimeOptions options = new PeerRuntimeOptions(peerName);
 			PeerConnectionRegistry connectionRegistry = new PeerConnectionRegistry();
 			PeerConnectionService connectionService = new PeerConnectionService(log);
-			NanoPointStore pointStore = NanoPointStore.CreateDefault();
+			PointStore pointStore = PointStore.CreateDefault();
 			ServerGpioTask serverGpioTask = new ServerGpioTask(log, DeviceId, pointStore);
 
 			if (RunServer)

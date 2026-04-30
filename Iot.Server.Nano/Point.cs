@@ -1,8 +1,8 @@
 namespace Iot.Server.Nano
 {
-	public sealed class PointDefinition
+	public sealed class Point
 	{
-		public PointDefinition(int id, int deviceId, string name, PointType type, string address)
+		public Point(int id, int deviceId, string name, PointType type, string address)
 		{
 			Id = id;
 			DeviceId = deviceId;

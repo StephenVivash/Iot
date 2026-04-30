@@ -42,8 +42,8 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 			})
 			.ToArrayAsync(cancellationToken);
 
-		on = !on;
-		string nextStatus = on ? "On" : "Off";
+		//on = !on;
+		//string nextStatus = on ? "On" : "Off";
 
 		foreach (var point in points)
 		{
@@ -52,9 +52,9 @@ public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 			string offStatus = GetFallbackStatus(point.Status0, "Off");
 			string onStatus = GetFallbackStatus(point.Status1, "On");
 
-			//string nextStatus = string.Equals(point.Status, onStatus, StringComparison.OrdinalIgnoreCase)
-			//	? offStatus
-			//	: onStatus;
+			string nextStatus = string.Equals(point.Status, onStatus, StringComparison.OrdinalIgnoreCase)
+				? offStatus
+				: onStatus;
 
 			_logger.LogInformation("MAUI test sending point control to device {DeviceId}. {PointName} ({PointId}): {Status}.",
 				point.DeviceId, point.Name, point.Id, nextStatus);
