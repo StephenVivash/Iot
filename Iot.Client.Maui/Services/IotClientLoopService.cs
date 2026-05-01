@@ -5,12 +5,13 @@ namespace Iot.Client.Maui.Services;
 
 public sealed class IotClientLoopService : IDisposable
 {
-	private static readonly PeerAddress LocalPeerAddress = new("pi51.local", 5050); // localhost pi51.local
+	private const int DefaultPort = 5050;
 
 	private readonly ILogger _logger;
 	private readonly Lock _lock = new();
 	private readonly PeerClientService _peerClientService;
 	private readonly PeerRuntimeOptions _options;
+	private PeerAddress? _peerAddress;
 	private CancellationTokenSource? _shutdown;
 	private Task? _runTask;
 
@@ -22,9 +23,15 @@ public sealed class IotClientLoopService : IDisposable
 		_options = options;
 		_peerClientService = peerClientService;
 		_logger = loggerFactory.CreateLogger("Iot.Client.Maui");
+		_peerClientService.PointStatusReceived += OnPointStatusReceived;
 	}
 
-	public void Start()
+	public event Action<PointStatus>? PointStatusReceived;
+
+	private void OnPointStatusReceived(PointStatus pointStatus) =>
+		PointStatusReceived?.Invoke(pointStatus);
+
+	public void Start(PeerAddress peerAddress)
 	{
 		lock (_lock)
 		{
@@ -33,13 +40,23 @@ public sealed class IotClientLoopService : IDisposable
 				return;
 			}
 
+			_peerAddress = peerAddress;
 			_shutdown = new CancellationTokenSource();
 			_runTask = RunAsync(_shutdown.Token);
 		}
 	}
 
+	public void ConnectToServer(string serverName)
+	{
+		PeerAddress peerAddress = new($"{serverName}.local", DefaultPort);
+		Stop();
+		Start(peerAddress);
+	}
+
 	public void Dispose()
 	{
+		_peerClientService.PointStatusReceived -= OnPointStatusReceived;
+
 		Task? runTask;
 		CancellationTokenSource? shutdown;
 
@@ -114,14 +131,18 @@ public sealed class IotClientLoopService : IDisposable
 			TaskScheduler.Default);
 	}
 
+	public Task<bool> SendPointControlAsync(int pointId, string status, CancellationToken cancellationToken = default) =>
+		_peerClientService.SendPointControlAsync(PeerMessages.CreatePointControl(pointId, status), cancellationToken);
+
 	private async Task RunAsync(CancellationToken cancellationToken)
 	{
+		PeerAddress peerAddress = _peerAddress ?? new("pi51.local", DefaultPort);
 		_logger.LogWarning("Host name: {PeerName}", _options.PeerName);
-		_logger.LogWarning("Client connecting to {PeerAddress}.", LocalPeerAddress);
+		_logger.LogWarning("Client connecting to {PeerAddress}.", peerAddress);
 
 		try
 		{
-			await _peerClientService.RunAsync(LocalPeerAddress, cancellationToken);
+			await _peerClientService.RunAsync(peerAddress, cancellationToken);
 		}
 		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 		{
