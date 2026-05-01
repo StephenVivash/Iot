@@ -15,6 +15,8 @@ public sealed class PeerClientService
 	private readonly PeerRuntimeOptions _options;
 	private readonly IotDatabase _database;
 
+	public event Action<PointStatus>? PointStatusReceived;
+
 	public PeerClientService(
 		PeerRuntimeOptions options,
 		PeerConnectionRegistry connectionRegistry,
@@ -202,6 +204,22 @@ public sealed class PeerClientService
 		context.SentPollCount++;
 	}
 
+	public async Task<bool> SendPointControlAsync(PointControl pointControl, CancellationToken cancellationToken = default)
+	{
+		PeerConnection? connection = _connectionRegistry.GetByRole(PeerRole.Client)
+			.FirstOrDefault(connection => !connection.CancellationToken.IsCancellationRequested);
+
+		if (connection is null)
+		{
+			_logger.LogWarning("Client cannot send point control for point {PointId}; no server connection is active.",
+				pointControl.Id);
+			return false;
+		}
+
+		await _connectionService.SendAndLogAsync(connection, PeerMessages.PointControlType, pointControl, cancellationToken);
+		return true;
+	}
+
 	private Task RunClientSummaryAsync(PeerClientLoopContext context, CancellationToken cancellationToken)
 	{
 		_logger.LogInformation("Client summary for {RemotePeer}. Messages - Polls: {SentPollCount}. Processed: {ProcessedMessageCount}. Queued: {QueuedMessageCount}.",
@@ -263,6 +281,8 @@ public sealed class PeerClientService
 
 			_logger.LogInformation("Client received point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
 				connection.RemoteDisplayName, point.Name, point.Id,	point.Status, units);
+
+			PointStatusReceived?.Invoke(pointStatus);
 
 			await RelayPointStatusToConnectedClientsAsync(connection, pointStatus);
 

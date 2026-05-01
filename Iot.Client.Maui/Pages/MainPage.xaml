@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:Iot.Client.Maui.Controls"
     xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
     x:Class="Iot.Client.Maui.Pages.MainPage">
 
@@ -25,20 +26,83 @@
         toolkit:DockLayout.DockPosition="Left"
         WidthRequest="300"
         Padding="0">
-        <CollectionView 
-			x:Name="colWorkspace"
-            SelectionMode="Single"
-            SelectionChanged="OnMainPageSelectionChanged">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Grid Padding="2,2">
-                        <Label Text="{Binding Name}"
-                            Margin="{Binding Indent}"
-                            LineBreakMode="NoWrap" />
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="4" Padding="4">
+            <Picker
+                x:Name="pckServer"
+                Grid.Row="0"
+                ItemDisplayBinding="{Binding Name}"
+                SelectedIndexChanged="OnServerPickerSelectedIndexChanged" />
+            <Picker
+                x:Name="pckPointSet"
+                Grid.Row="1"
+                ItemDisplayBinding="{Binding Name}"
+                SelectedIndexChanged="OnPointSetPickerSelectedIndexChanged" />
+            <CollectionView
+                x:Name="colWorkspace"
+                Grid.Row="2"
+                SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border
+                            Margin="0,2"
+                            Padding="8"
+                            StrokeThickness="1"
+							>
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="6" />
+                            </Border.StrokeShape>
+                            <Grid ColumnDefinitions="*,120,24" ColumnSpacing="6">
+                                <Label
+                                    Grid.Column="0"
+                                    Text="{Binding Name}"
+                                    FontAttributes="Bold"
+                                    VerticalTextAlignment="Center"
+                                    HorizontalTextAlignment="Start"
+                                    LineBreakMode="TailTruncation" />
+                                <Label
+                                    Grid.Column="1"
+                                    Text="{Binding StatusText}"
+                                    FontSize="12"
+                                    TextColor="#f2f4f7"
+                                    VerticalTextAlignment="Center"
+                                    HorizontalTextAlignment="Start"
+                                    IsVisible="{Binding IsStatusTextVisible}"
+                                    LineBreakMode="TailTruncation" />
+                                <Picker
+                                    Grid.Column="1"
+                                    Grid.ColumnSpan="2"
+                                    WidthRequest="144"
+                                    HorizontalOptions="End"
+                                    ItemsSource="{Binding DigitalStates}"
+                                    SelectedItem="{Binding SelectedDigitalState, Mode=TwoWay}"
+                                    IsVisible="{Binding IsDigitalOutput}"
+                                    SelectedIndexChanged="OnDigitalStatePickerSelectedIndexChanged" />
+                                <HorizontalStackLayout
+                                    Grid.Column="1"
+                                    Grid.ColumnSpan="2"
+                                    Spacing="6"
+                                    HorizontalOptions="End"
+                                    IsVisible="{Binding IsOtherOutput}">
+                                    <Entry
+                                        WidthRequest="114"
+                                        Text="{Binding PendingStatus, Mode=TwoWay}" />
+                                    <controls:ButtonEx
+                                        WidthRequest="24"
+                                        HeightRequest="24"
+                                        MinimumWidthRequest="24"
+                                        MinimumHeightRequest="24"
+                                        FontSize="12"
+                                        Padding="0"
+                                        Border="True"
+                                        Icon="{x:Static controls:FluentIcons.Send}"
+                                        Clicked="OnSetPointClicked" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
     </Border>
 
     <Border
@@ -51,13 +115,13 @@
         <ScrollView
             x:Name="scrOutput"
             Orientation="Vertical">
-            <Editor 
-			    x:Name="edtOutput"
-                IsReadOnly="True"
-                AutoSize="TextChanges"
+            <Label
+                x:Name="lblOutput"
+                Padding="4"
                 FontFamily="Courier New"
-			    FontSize="16"
-                Placeholder="Command output will appear here." />
+                FontSize="16"
+                LineBreakMode="NoWrap"
+                Text="Command output will appear here." />
         </ScrollView>
     </Border>
 
@@ -65,15 +129,8 @@
         Stroke="#d0d7de"
         StrokeThickness="1"
         Padding="0">
-        <Editor 
-			x:Name="edtSource"
-            IsReadOnly="False"
-            AutoSize="TextChanges"
-            FontFamily="Courier New"
-			FontSize="16"
-            IsSpellCheckEnabled="False"
-            IsTextPredictionEnabled="False"
-            Placeholder="Source code will appear here." />
+        <WebView
+            x:Name="webSource" />
     </Border>
 
     </toolkit:DockLayout>
