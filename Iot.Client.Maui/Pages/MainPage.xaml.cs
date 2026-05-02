@@ -32,6 +32,21 @@ public partial class MainPage : ContentPage
 #endif
 	private const string SelectedServerPreferenceKey = "MainPage.SelectedServer";
 
+	/*
+	<x:String>pi51.local</x:String>
+	<x:String>172.22.26.83</x:String>
+
+	<x:String>pi31.local</x:String>
+	<x:String>172.22.26.127</x:String>
+	<x:String>169.254.152.95</x:String>
+
+	<x:String>piz21.local</x:String>
+	<x:String>172.22.26.28</x:String>
+
+	<x:String>koala.local</x:String>
+	<x:String>172.22.26.100</x:String>
+	<x:String>169.254.29.23</x:String>
+	 */
 	public MainPage()
 	{
 		InitializeComponent();
