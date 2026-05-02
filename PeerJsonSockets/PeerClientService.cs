@@ -120,7 +120,7 @@ public sealed class PeerClientService
 		_logger.LogWarning("Client connected to {RemotePeer}.", _connectionService.GetRemoteDisplayName(peer));
 
 		await _connectionService.SendAndLogAsync(PeerRole.Client, peer,
-			PeerMessages.HandshakeType,	PeerMessages.CreateHandshake(_options.PeerName),
+			PeerMessages.HandshakeType, PeerMessages.CreateHandshake(_options.PeerName),
 			cancellationToken);
 		JsonPeerMessage? ackMessage = await _connectionService.ReceiveAndLogAsync(PeerRole.Client, peer, cancellationToken);
 		if (ackMessage is null)
@@ -277,10 +277,10 @@ public sealed class PeerClientService
 			await dbContext.SaveChangesAsync(connection.CancellationToken);
 
 			string units = string.IsNullOrWhiteSpace(point.Units)
-				? string.Empty: $" {point.Units}";
+				? string.Empty : $" {point.Units}";
 
 			_logger.LogInformation("Client received point status from {RemotePeer}. {PointName} ({PointId}): {Status}{Units}.",
-				connection.RemoteDisplayName, point.Name, point.Id,	point.Status, units);
+				connection.RemoteDisplayName, point.Name, point.Id, point.Status, units);
 
 			PointStatusReceived?.Invoke(pointStatus);
 

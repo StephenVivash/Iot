@@ -35,7 +35,7 @@ public sealed class PeerConnectionService
 			RememberPeerName(peer, peerName);
 
 		_logger.LogDebug("{PeerRole} received {MessageType} from {RemotePeer}. Payload: {Payload}",
-			role, message.Type,	GetRemoteDisplayName(peer),	message.Payload.GetRawText());
+			role, message.Type, GetRemoteDisplayName(peer), message.Payload.GetRawText());
 
 		return message;
 	}

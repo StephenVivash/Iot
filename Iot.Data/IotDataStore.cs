@@ -4,13 +4,13 @@ namespace Iot.Data;
 
 public static class IotDataStore
 {
-    public static AppDbContext CreateDbContext(string dataBasePath)
-    {
+	public static AppDbContext CreateDbContext(string dataBasePath)
+	{
 		var options = CreateDbContextOptions(dataBasePath);
-        var dbContext = new AppDbContext(options);
-        dbContext.Database.Migrate();
-        return dbContext;
-    }
+		var dbContext = new AppDbContext(options);
+		dbContext.Database.Migrate();
+		return dbContext;
+	}
 
 	public static DbContextOptions<AppDbContext> CreateDbContextOptions(string dataBasePath)
 	{
