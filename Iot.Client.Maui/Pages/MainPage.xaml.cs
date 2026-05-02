@@ -21,6 +21,7 @@ public partial class MainPage : ContentPage
 	private readonly ObservableCollection<PointItem> _points = [];
 	private bool _loadingPickers;
 	private bool _isDisposingRuntime;
+	private bool _isClientLoopRunning;
 
 #if WINDOWS
 	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
@@ -36,12 +37,11 @@ public partial class MainPage : ContentPage
 		InitializeComponent();
 		ConfigureSourceWebView();
 		_logSink = new MainPageLogSink();
+		_logSink.LineAppended += OnLogLineAppended;
 		_logSink.WriteLine($"App data: {basePath}");
 		_logSink.WriteLine($"Log file: {GetLogFilePath()}");
 		_loggerFactory = CreateLoggerFactory(_logSink);
 		_clientLoopService = CreateClientLoopService(_loggerFactory);
-		SetOutputText(_logSink.GetText());
-		_logSink.LineAppended += OnLogLineAppended;
 		_clientLoopService.PointStatusReceived += OnPointStatusReceived;
 		colWorkspace.ItemsSource = _points;
 		LoadPickers();
@@ -151,11 +151,13 @@ public partial class MainPage : ContentPage
 	{
 		if (pckServer.SelectedItem is not ServerItem server)
 		{
+			SetConsoleState(false, "No server selected");
 			return;
 		}
 
 		Preferences.Set(SelectedServerPreferenceKey, server.Name);
 		_clientLoopService.ConnectToServer(server.Name);
+		SetConsoleState(true, $"Running: {server.Name}");
 	}
 
 	private void LoadSelectedPoints()
@@ -277,12 +279,12 @@ public partial class MainPage : ContentPage
 		});
 	}
 
-	private void SetOutputText(string text)
+	private void SetConsoleState(bool isRunning, string statusText)
 	{
-		lblOutput.Text = string.IsNullOrEmpty(text)
-			? "Command output will appear here."
-			: text;
-		lblOutput.InvalidateMeasure();
+		_isClientLoopRunning = isRunning;
+		consoleLog.StatusText = statusText;
+		consoleLog.IsStartEnabled = !isRunning;
+		consoleLog.IsStopEnabled = isRunning;
 	}
 
 	private void OnLogLineAppended(string line)
@@ -301,10 +303,7 @@ public partial class MainPage : ContentPage
 					return;
 				}
 
-				SetOutputText(_logSink.GetText());
-				await Task.Yield();
-				lblOutput.InvalidateMeasure();
-				await scrOutput.ScrollToAsync(0, double.MaxValue, false);
+				consoleLog.Add(line);
 			}
 			catch (ObjectDisposedException)
 			{
@@ -313,6 +312,29 @@ public partial class MainPage : ContentPage
 			{
 			}
 		});
+	}
+
+	private void OnConsoleStartClicked(object? sender, EventArgs e)
+	{
+		if (_isClientLoopRunning)
+		{
+			return;
+		}
+
+		_loggerFactory.CreateLogger<MainPage>().LogInformation("Console start requested.");
+		ConnectToSelectedServer();
+	}
+
+	private void OnConsoleStopClicked(object? sender, EventArgs e)
+	{
+		if (!_isClientLoopRunning)
+		{
+			return;
+		}
+
+		_loggerFactory.CreateLogger<MainPage>().LogInformation("Console stop requested.");
+		_clientLoopService.Stop();
+		SetConsoleState(false, "Stopped");
 	}
 
 	public void DisposeRuntime()

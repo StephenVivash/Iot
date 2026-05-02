@@ -62,7 +62,6 @@
                                 <Label
                                     Grid.Column="1"
                                     Text="{Binding StatusText}"
-                                    FontSize="12"
                                     TextColor="#f2f4f7"
                                     VerticalTextAlignment="Center"
                                     HorizontalTextAlignment="Start"
@@ -87,13 +86,9 @@
                                         WidthRequest="114"
                                         Text="{Binding PendingStatus, Mode=TwoWay}" />
                                     <controls:ButtonEx
-                                        WidthRequest="24"
-                                        HeightRequest="24"
-                                        MinimumWidthRequest="24"
-                                        MinimumHeightRequest="24"
-                                        FontSize="12"
+                                        FontSize="14"
                                         Padding="0"
-                                        Border="True"
+                                        Border="False"
                                         Icon="{x:Static controls:FluentIcons.Send}"
                                         Clicked="OnSetPointClicked" />
                                 </HorizontalStackLayout>
@@ -105,27 +100,12 @@
         </Grid>
     </Border>
 
-    <Border
-        Grid.Column="1"
-        Stroke="#d0d7de"
+    <controls:LogView
+        x:Name="consoleLog"
         toolkit:DockLayout.DockPosition="Bottom"
         HeightRequest="200"
-        StrokeThickness="1"
-        Padding="0">
-        <ScrollView
-            x:Name="scrOutput"
-            Orientation="Vertical"
-            BackgroundColor="#0d1117">
-            <Label
-                x:Name="lblOutput"
-                Padding="4"
-                FontFamily="Courier New"
-                FontSize="16"
-                TextColor="#e6edf3"
-                LineBreakMode="WordWrap"
-                Text="Command output will appear here." />
-        </ScrollView>
-    </Border>
+        StartClicked="OnConsoleStartClicked"
+        StopClicked="OnConsoleStopClicked" />
 
     <Border
         Stroke="#d0d7de"
