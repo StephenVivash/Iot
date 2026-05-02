@@ -114,13 +114,15 @@
         Padding="0">
         <ScrollView
             x:Name="scrOutput"
-            Orientation="Vertical">
+            Orientation="Vertical"
+            BackgroundColor="#0d1117">
             <Label
                 x:Name="lblOutput"
                 Padding="4"
                 FontFamily="Courier New"
                 FontSize="16"
-                LineBreakMode="NoWrap"
+                TextColor="#e6edf3"
+                LineBreakMode="WordWrap"
                 Text="Command output will appear here." />
         </ScrollView>
     </Border>

@@ -10,31 +10,31 @@ public enum DeviceType
 
 public sealed class Device
 {
-    public Device()
-    {
-    }
+	public Device()
+	{
+	}
 
-    public Device(int id, int parentDeviceId, string name, string description, DeviceType typeId, string status)
-    {
-        Id = id;
-        ParentDeviceId = parentDeviceId;
-        Name = name;
-        Description = description;
-        TypeId = (int)typeId;
-        Status = status;
-    }
+	public Device(int id, int parentDeviceId, string name, string description, DeviceType typeId, string status)
+	{
+		Id = id;
+		ParentDeviceId = parentDeviceId;
+		Name = name;
+		Description = description;
+		TypeId = (int)typeId;
+		Status = status;
+	}
 
-    public int Id { get; set; }
+	public int Id { get; set; }
 
-    public int ParentDeviceId { get; set; }
+	public int ParentDeviceId { get; set; }
 
-    public string Name { get; set; } = string.Empty;
+	public string Name { get; set; } = string.Empty;
 
-    public string Description { get; set; } = string.Empty;
+	public string Description { get; set; } = string.Empty;
 
-    public int TypeId { get; set; }
+	public int TypeId { get; set; }
 
-    public string Status { get; set; } = string.Empty;
+	public string Status { get; set; } = string.Empty;
 
-    public List<Point> Points { get; set; } = [];
+	public List<Point> Points { get; set; } = [];
 }

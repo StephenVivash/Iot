@@ -37,18 +37,22 @@ public sealed class IotClientLoopService : IDisposable
 		{
 			if (_runTask is not null)
 			{
+				_logger.LogWarning("Client connection loop is already running for {PeerAddress}; start request for {RequestedPeerAddress} ignored.",
+					_peerAddress, peerAddress);
 				return;
 			}
 
 			_peerAddress = peerAddress;
 			_shutdown = new CancellationTokenSource();
-			_runTask = RunAsync(_shutdown.Token);
+			_runTask = Task.Run(() => RunAsync(_shutdown.Token), _shutdown.Token);
 		}
 	}
 
 	public void ConnectToServer(string serverName)
 	{
 		PeerAddress peerAddress = new($"{serverName}.local", DefaultPort);
+		_logger.LogWarning("Client selected server {ServerName}; resolved peer address {PeerAddress}.",
+			serverName, peerAddress);
 		Stop();
 		Start(peerAddress);
 	}
@@ -103,9 +107,11 @@ public sealed class IotClientLoopService : IDisposable
 
 		if (shutdown is null)
 		{
+			_logger.LogWarning("Client connection loop is not running.");
 			return;
 		}
 
+		_logger.LogWarning("Client stopping connection loop.");
 		shutdown.Cancel();
 		if (runTask is null)
 		{

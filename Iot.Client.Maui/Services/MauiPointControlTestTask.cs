@@ -7,7 +7,7 @@ namespace Iot.Client.Maui.Services;
 
 public sealed class MauiPointControlTestTask : IPeerClientLoopTask
 {
-	private static readonly int[] DeviceIds = [/*1, 3, 7, 8, 9, 10,*/ 11, 12 ];
+	private static readonly int[] DeviceIds = [/*1, 3, 7, 8, 9, 10,*/ 11, 12];
 
 	private readonly ILogger<MauiPointControlTestTask> _logger;
 

@@ -22,7 +22,13 @@ public partial class MainPage : ContentPage
 	private bool _loadingPickers;
 	private bool _isDisposingRuntime;
 
+#if WINDOWS
 	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
+#elif ANDROID
+	private static readonly string basePath = FileSystem.AppDataDirectory;
+#else
+	private static readonly string basePath = "";
+#endif
 	private const string SelectedServerPreferenceKey = "MainPage.SelectedServer";
 
 	public MainPage()
@@ -30,6 +36,8 @@ public partial class MainPage : ContentPage
 		InitializeComponent();
 		ConfigureSourceWebView();
 		_logSink = new MainPageLogSink();
+		_logSink.WriteLine($"App data: {basePath}");
+		_logSink.WriteLine($"Log file: {GetLogFilePath()}");
 		_loggerFactory = CreateLoggerFactory(_logSink);
 		_clientLoopService = CreateClientLoopService(_loggerFactory);
 		SetOutputText(_logSink.GetText());
@@ -43,7 +51,7 @@ public partial class MainPage : ContentPage
 
 	private static ILoggerFactory CreateLoggerFactory(MainPageLogSink logSink)
 	{
-		string logFilePath = Path.Combine(basePath, "logs", $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
+		string logFilePath = GetLogFilePath();
 
 		return LoggerFactory.Create(logging =>
 		{
@@ -57,9 +65,12 @@ public partial class MainPage : ContentPage
 		});
 	}
 
+	private static string GetLogFilePath() =>
+		Path.Combine(basePath, "logs", $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
+
 	private static IotClientLoopService CreateClientLoopService(ILoggerFactory loggerFactory)
 	{
-		PeerRuntimeOptions options = new(Environment.MachineName);
+		PeerRuntimeOptions options = new(GetPeerName());
 		PeerConnectionRegistry connectionRegistry = new();
 		ILogger logger = loggerFactory.CreateLogger("Iot.Client.Maui");
 		PeerConnectionService connectionService = new(logger);
@@ -75,6 +86,18 @@ public partial class MainPage : ContentPage
 		return new IotClientLoopService(options, peerClientService, loggerFactory);
 	}
 
+	private static string GetPeerName()
+	{
+		string machineName = Environment.MachineName;
+		if (!string.IsNullOrWhiteSpace(machineName) &&
+			!string.Equals(machineName, "localhost", StringComparison.OrdinalIgnoreCase))
+		{
+			return machineName;
+		}
+
+		return $"maui-{DeviceInfo.Platform}-{DeviceInfo.Name}".Replace(' ', '-');
+	}
+
 	private void ConfigureSourceWebView()
 	{
 		webSource.Source = "https://www.google.com";
@@ -85,6 +108,9 @@ public partial class MainPage : ContentPage
 		_loadingPickers = true;
 
 		using var dbContext = CreateDbContext();
+#if ANDROID
+		dbContext.InitialiseDB();
+#endif
 		List<ServerItem> servers = dbContext.Devices
 			.AsNoTracking()
 			.Where(device => device.TypeId != (int)ModelDeviceType.Client)
@@ -256,6 +282,7 @@ public partial class MainPage : ContentPage
 		lblOutput.Text = string.IsNullOrEmpty(text)
 			? "Command output will appear here."
 			: text;
+		lblOutput.InvalidateMeasure();
 	}
 
 	private void OnLogLineAppended(string line)
@@ -274,11 +301,9 @@ public partial class MainPage : ContentPage
 					return;
 				}
 
-				lblOutput.Text = string.IsNullOrEmpty(lblOutput.Text) ||
-					lblOutput.Text == "Command output will appear here."
-					? line
-					: $"{lblOutput.Text}{Environment.NewLine}{line}";
-
+				SetOutputText(_logSink.GetText());
+				await Task.Yield();
+				lblOutput.InvalidateMeasure();
 				await scrOutput.ScrollToAsync(0, double.MaxValue, false);
 			}
 			catch (ObjectDisposedException)
@@ -337,7 +362,7 @@ public partial class MainPage : ContentPage
 				device.Id, device.ParentDeviceId, device.Name, device.TypeId, device.Status);
 			foreach (var point in device.Points.OrderBy(point => point.Id))
 				logger.LogInformation("  - {PointName} | {PointTypeId} | {PointStatus} {PointUnits}",
-					point.Name,	point.TypeId, point.Status, point.Units);
+					point.Name, point.TypeId, point.Status, point.Units);
 		}
 
 		foreach (var group in groups)
@@ -345,7 +370,7 @@ public partial class MainPage : ContentPage
 			logger.LogInformation("Group #{GroupId} | {GroupName}", group.Id, group.Name);
 			foreach (var groupPoint in group.GroupPoints.OrderBy(groupPoint => groupPoint.Id))
 				logger.LogInformation("  - Point #{PointId} | {PointName}",
-					groupPoint.PointId,	groupPoint.Point.Name);
+					groupPoint.PointId, groupPoint.Point.Name);
 		}
 	}
 

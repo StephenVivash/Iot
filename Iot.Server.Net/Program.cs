@@ -73,7 +73,7 @@ internal static class Program
 			//	serverLoopTasks.Add(new ServerDataTask(logger, deviceId));
 
 			PeerServerService serverService = new(IPAddress.Any, startupMode.ServerPort,
-				options, connectionRegistry, connectionService,	logger,	database, serverLoopTasks, pointControlHandlers);
+				options, connectionRegistry, connectionService, logger, database, serverLoopTasks, pointControlHandlers);
 
 			logger.LogWarning("Server listening on port {ListenPort}. Press Ctrl+C to stop.", startupMode.ServerPort);
 			tasks.Add(serverService.RunAsync(shutdown.Token));
