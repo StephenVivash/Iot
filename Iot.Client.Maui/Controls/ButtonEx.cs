@@ -1,11 +1,11 @@
 
 
-namespace Iot.Client.Maui.Controls;
+namespace Gui.Controls;
 
 public class ButtonEx : Button
 {
-	private static readonly Color _bgColor = App.Current?.RequestedTheme == AppTheme.Dark ? Colors.Black : Colors.White;
-	private static readonly Color _fgColor = App.Current?.RequestedTheme == AppTheme.Dark ? Colors.White : Colors.Black;
+	private static readonly Color _bgColor = Iot.Client.Maui.App.Current?.RequestedTheme == AppTheme.Dark ? Colors.Black : Colors.White;
+	private static readonly Color _fgColor = Iot.Client.Maui.App.Current?.RequestedTheme == AppTheme.Dark ? Colors.White : Colors.Black;
 
 	public ButtonEx()
 	{

@@ -1,6 +1,5 @@
-using CommunityToolkit.Maui.Core;
 
-namespace Iot.Client.Maui.Controls;
+namespace Gui.Controls;
 
 public static class FluentIcons
 {
