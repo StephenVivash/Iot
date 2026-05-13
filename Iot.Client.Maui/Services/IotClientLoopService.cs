@@ -52,13 +52,13 @@ public sealed class IotClientLoopService : IDisposable
 	{
 		int xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
 		string[] servers = [
-			"pi51","10.163.190.83",
-			"piz21","10.163.190.28",
-			"lora1","10.163.190.98",
-			"nano7","10.163.190.57",
-			"nano8","10.163.190.193",
-			"nano9","10.163.190.13",
-			"nano10","10.163.190.226"];
+			"pi51","172.28.46.83",
+			"piz21","172.28.46.28",
+			"lora1","172.28.46.98",
+			"nano7","172.28.46.57",
+			"nano8","172.28.46.193",
+			"nano9","172.28.46.13",
+			"nano10","172.28.46.226"];
 		string server = serverName;
 		for (int i = 0; i < servers.Length / 2; i = i + 2)
 		{
