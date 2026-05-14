@@ -1,13 +1,14 @@
+using Gui.Controls;
 using Iot.Client.Maui.Logging;
-using Iot.Data;
 using Iot.Client.Maui.Services;
+using Iot.Data;
 using Iot.Data.Models;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PeerJsonSockets;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using ModelDeviceType = Iot.Data.Models.DeviceType;
 using ModelPoint = Iot.Data.Models.Point;
 
@@ -49,6 +50,8 @@ public partial class MainPage : ContentPage
 	 */
 	public MainPage()
 	{
+		var b = new RegisterInViewDirectoryBehavior(); // { Key = "DiagramView1" };
+		Behaviors.Add(b);
 		InitializeComponent();
 		ConfigureSourceWebView();
 		_logSink = new MainPageLogSink();
