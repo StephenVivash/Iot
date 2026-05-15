@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -10,6 +11,8 @@ using Iot.Data;
 using Iot.Data.Models;
 
 using PeerJsonSockets;
+
+using Common.Ai;
 using Gui.Services;
 
 using ModelDeviceType = Iot.Data.Models.DeviceType;
@@ -27,6 +30,8 @@ public partial class MainPage : ContentPage
 	private bool _isDisposingRuntime;
 	private bool _isClientLoopRunning;
 
+	private readonly Ai _ai = new();
+
 #if WINDOWS
 	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
 #elif ANDROID
@@ -36,21 +41,6 @@ public partial class MainPage : ContentPage
 #endif
 	private const string SelectedServerPreferenceKey = "MainPage.SelectedServer";
 
-	/*
-	<x:String>pi51.local</x:String>
-	<x:String>172.22.26.83</x:String>
-
-	<x:String>pi31.local</x:String>
-	<x:String>172.22.26.127</x:String>
-	<x:String>169.254.152.95</x:String>
-
-	<x:String>piz21.local</x:String>
-	<x:String>172.22.26.28</x:String>
-
-	<x:String>koala.local</x:String>
-	<x:String>172.22.26.100</x:String>
-	<x:String>169.254.29.23</x:String>
-	 */
 	public MainPage()
 	{
 		var b = new RegisterInViewDirectoryBehavior(); // { Key = "DiagramView1" };
@@ -62,12 +52,61 @@ public partial class MainPage : ContentPage
 		_logSink.WriteLine($"App data: {basePath}");
 		_logSink.WriteLine($"Log file: {GetLogFilePath()}");
 		_loggerFactory = CreateLoggerFactory(_logSink);
+		ConfigureAiPreferences();
 		_clientLoopService = CreateClientLoopService(_loggerFactory);
 		_clientLoopService.PointStatusReceived += OnPointStatusReceived;
 		colWorkspace.ItemsSource = _points;
 		LoadPickers();
 		ConnectToSelectedServer();
 		DataTest();
+
+		_ = RunAiSmokeTestAsync();
+	}
+
+	const string _aiService = "OpenAI";
+	private static void ConfigureAiPreferences()
+	{
+		const string aiKey = "";
+
+		AiPreferences.AiServiceNames = [_aiService];
+		AiPreferences.AiTemperature = AiPreferences.AiTemperatureDefault;
+		AiPreferences.AiTopP = AiPreferences.AiTopPDefault;
+		AiPreferences.AiMaxTokens = AiPreferences.AiMaxTokensDefault;
+		AiPreferences.AiServices = new Dictionary<string, AiPreferences.AiServiceInfo>(StringComparer.OrdinalIgnoreCase)
+		{
+			[_aiService] = new(
+				AiPreferences.OpenAiModelDefault,
+				AiPreferences.OpenAiEndPointDefault,
+				aiKey)
+		};
+	}
+
+	private async Task RunAiSmokeTestAsync()
+	{
+		ILogger logger = _loggerFactory.CreateLogger<MainPage>();
+		var serviceInfo = AiPreferences.AiService(_aiService);
+
+		if (string.IsNullOrWhiteSpace(serviceInfo.ModelId) ||
+			string.IsNullOrWhiteSpace(serviceInfo.EndPoint) ||
+			string.IsNullOrWhiteSpace(serviceInfo.Key))
+		{
+			logger.LogInformation($"AI smoke test skipped: {_aiService} model, endpoint, or key is not configured.");
+			return;
+		}
+
+		try
+		{
+			string response = await _ai.ChatOnceAsync(
+				_aiService,
+				"You are a concise diagnostics assistant.",
+				"Reply with exactly this text: Iot.Client.Maui AI smoke test succeeded.");
+
+			logger.LogInformation("{Service} response: {Response}", _aiService, response);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "{Service} smoke test failed.", _aiService);
+		}
 	}
 
 	private static ILoggerFactory CreateLoggerFactory(MainPageLogSink logSink)
@@ -87,7 +126,7 @@ public partial class MainPage : ContentPage
 	}
 
 	private static string GetLogFilePath() =>
-		Path.Combine(basePath, "logs", $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.log");
+		Path.Combine(basePath, "logs", $"{DateTime.Now:yyyy-MM-dd HH-mm-ss}.txt");
 
 	private static IotClientLoopService CreateClientLoopService(ILoggerFactory loggerFactory)
 	{

@@ -52,6 +52,20 @@ internal sealed class TimestampedFileLoggerProvider : ILoggerProvider
 
 		public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
 
+		private static string LogLevelString(LogLevel logLevel)
+		{
+			return logLevel switch
+			{
+				LogLevel.Trace => "Trace",
+				LogLevel.Debug => "Debug",
+				LogLevel.Information => "Info",
+				LogLevel.Warning => "Warn",
+				LogLevel.Error => "Fail",
+				LogLevel.Critical => "Crit",
+				_ => logLevel.ToString()
+			};
+		}
+
 		public void Log<TState>(
 			LogLevel logLevel,
 			EventId eventId,
@@ -74,7 +88,7 @@ internal sealed class TimestampedFileLoggerProvider : ILoggerProvider
 			{
 				_writer.Write(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz"));
 				_writer.Write(" [");
-				_writer.Write(logLevel);
+				_writer.Write(LogLevelString(logLevel));
 				_writer.Write("] ");
 				_writer.WriteLine(message);
 
