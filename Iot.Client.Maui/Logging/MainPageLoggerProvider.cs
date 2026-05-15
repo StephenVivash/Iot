@@ -68,7 +68,7 @@ internal sealed class MainPageLoggerProvider : ILoggerProvider
 				return;
 			}
 
-			_sink.WriteLine($"{DateTimeOffset.Now:HH:mm:ss} [{LogLevelString(logLevel)}] {message}");
+			_sink.WriteLine($"[{LogLevelString(logLevel)}] {message}");
 
 			if (exception is not null)
 			{
