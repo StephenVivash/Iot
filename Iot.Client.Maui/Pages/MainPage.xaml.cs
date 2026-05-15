@@ -1,14 +1,17 @@
-using Gui.Controls;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 using Iot.Client.Maui.Logging;
 using Iot.Client.Maui.Services;
 using Iot.Data;
 using Iot.Data.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+
 using PeerJsonSockets;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using Gui.Services;
+
 using ModelDeviceType = Iot.Data.Models.DeviceType;
 using ModelPoint = Iot.Data.Models.Point;
 
