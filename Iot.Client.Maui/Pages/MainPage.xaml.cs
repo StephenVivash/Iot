@@ -20,6 +20,11 @@ using ModelPoint = Iot.Data.Models.Point;
 
 namespace Iot.Client.Maui.Pages;
 
+/*
+	<Border
+        Stroke="#d0d7de"
+*/
+
 public partial class MainPage : ContentPage
 {
 	private readonly MainPageLogSink _logSink;
@@ -161,6 +166,49 @@ public partial class MainPage : ContentPage
 	private void ConfigureSourceWebView()
 	{
 		webSource.Source = "https://www.google.com";
+	}
+
+	protected override void OnSizeAllocated(double width, double height)
+	{
+		if ((width == -1) || (height == -1))
+			return;
+#if ANDROID
+		if (width > height)
+		{
+			workspacePanel.WidthRequest = 200;
+			//horMenu.IsVisible = false;
+			//verMenu.IsVisible = true;
+			//diagramView.WidthRequest = 200;
+			//diagramView.ButtonPadding(new Thickness(0, 5));
+		}
+		else
+		{
+			workspacePanel.HeightRequest = height;
+			//horMenu.IsVisible = true;
+			//verMenu.IsVisible = false;
+			//diagramView.WidthRequest = width;
+			//diagramView.ButtonPadding(new Thickness(5));
+		}
+#else
+		//horMenu.IsVisible = false;
+		//verMenu.IsVisible = true;
+#endif
+		base.OnSizeAllocated(width, height);
+	}
+
+	private void OnWebSourceFocused(object? sender, FocusEventArgs e)
+	{
+		logPanel.HeightRequest = 100;
+	}
+
+	private void OnConsoleLogFocused(object? sender, FocusEventArgs e)
+	{
+		logPanel.HeightRequest = 200;
+	}
+
+	private void OnConsoleLogTapped(object? sender, TappedEventArgs e)
+	{
+		logPanel.HeightRequest = 200;
 	}
 
 	private void LoadPickers()
