@@ -34,17 +34,17 @@ internal sealed class MainPageLoggerProvider : ILoggerProvider
 		}
 
 
-		public string LogLevelString(LogLevel logLevel)
+		private static string LogLevelString(LogLevel logLevel)
 		{
 			return logLevel switch
 			{
-				LogLevel.Trace => "trac",
-				LogLevel.Debug => "debg",
-				LogLevel.Information => "info",
-				LogLevel.Warning => "warn",
-				LogLevel.Error => "fail",
-				LogLevel.Critical => "crit",
-				_ => logLevel.ToString().ToLowerInvariant()
+				LogLevel.Trace => "Trace",
+				LogLevel.Debug => "Debug",
+				LogLevel.Information => "Info",
+				LogLevel.Warning => "Warn",
+				LogLevel.Error => "Fail",
+				LogLevel.Critical => "Crit",
+				_ => logLevel.ToString()
 			};
 		}
 
@@ -68,7 +68,7 @@ internal sealed class MainPageLoggerProvider : ILoggerProvider
 				return;
 			}
 
-			_sink.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{LogLevelString(logLevel)}] {message}");
+			_sink.WriteLine($"[{LogLevelString(logLevel)}] {message}");
 
 			if (exception is not null)
 			{

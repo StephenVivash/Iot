@@ -1,6 +1,8 @@
 <Solution>
+  <Project Path="../Common/Common/Common.csproj" />
+  <Project Path="../Common/Gui/Gui.csproj" />
   <Project Path="Iot.Client.Maui/Iot.Client.Maui.csproj">
-    <Deploy Solution="Release|*" />
+    <Deploy />
   </Project>
   <Project Path="Iot.Data.Test/Iot.Data.Test.csproj" />
   <Project Path="Iot.Data/Iot.Data.csproj" />
@@ -8,6 +10,9 @@
     <Deploy />
   </Project>
   <Project Path="Iot.Server.Net/Iot.Server.Net.csproj" />
+  <Project Path="Iot.Server.Stm32/Iot.Server.Stm32.nfproj" Type="11a8dd76-328b-46df-9f39-f559912d0360" Id="e4f5b8ec-630e-4bd2-be04-8764fa6cea36">
+    <Deploy />
+  </Project>
   <Project Path="PeerJsonSockets.Nano/PeerJsonSockets.Nano.nfproj" Type="11a8dd76-328b-46df-9f39-f559912d0360" Id="4f353ac3-8564-4b79-9856-84e3ba08d630">
     <Deploy />
   </Project>

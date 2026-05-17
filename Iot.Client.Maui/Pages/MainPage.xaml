@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:controls="clr-namespace:Iot.Client.Maui.Controls"
+    xmlns:controls="clr-namespace:Gui.Controls;assembly=Gui"
     xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
     x:Class="Iot.Client.Maui.Pages.MainPage">
 
@@ -21,8 +21,7 @@
         /-->
 
     <Border
-        Stroke="#d0d7de"
-        StrokeThickness="1"
+        x:Name="workspacePanel"
         toolkit:DockLayout.DockPosition="Left"
         WidthRequest="300"
         Padding="0">
@@ -46,7 +45,6 @@
                         <Border
                             Margin="0,2"
                             Padding="8"
-                            StrokeThickness="1"
 							>
                             <Border.StrokeShape>
                                 <RoundRectangle CornerRadius="6" />
@@ -55,14 +53,12 @@
                                 <Label
                                     Grid.Column="0"
                                     Text="{Binding Name}"
-                                    FontAttributes="Bold"
                                     VerticalTextAlignment="Center"
                                     HorizontalTextAlignment="Start"
                                     LineBreakMode="TailTruncation" />
                                 <Label
                                     Grid.Column="1"
                                     Text="{Binding StatusText}"
-                                    TextColor="#f2f4f7"
                                     VerticalTextAlignment="Center"
                                     HorizontalTextAlignment="Start"
                                     IsVisible="{Binding IsStatusTextVisible}"
@@ -100,19 +96,28 @@
         </Grid>
     </Border>
 
-    <controls:LogView
-        x:Name="consoleLog"
-        toolkit:DockLayout.DockPosition="Bottom"
-        HeightRequest="200"
-        StartClicked="OnConsoleStartClicked"
-        StopClicked="OnConsoleStopClicked" />
+	<Border
+        x:Name="logPanel"
+		toolkit:DockLayout.DockPosition="Bottom"
+        Padding="0">
+		<controls:LogView
+			x:Name="consoleLog"
+			HeightRequest="200"
+			Focused="OnConsoleLogFocused"
+			StartClicked="OnConsoleStartClicked"
+			StopClicked="OnConsoleStopClicked">
+			<controls:LogView.GestureRecognizers>
+				<TapGestureRecognizer Tapped="OnConsoleLogTapped" />
+			</controls:LogView.GestureRecognizers>
+		</controls:LogView>
+	</Border>
 
-    <Border
-        Stroke="#d0d7de"
-        StrokeThickness="1"
+	<Border
+        x:Name="webPanel"
         Padding="0">
         <WebView
-            x:Name="webSource" />
+            x:Name="webSource"
+            Focused="OnWebSourceFocused" />
     </Border>
 
     </toolkit:DockLayout>
