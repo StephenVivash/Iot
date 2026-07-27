@@ -53,13 +53,13 @@ public sealed class IotClientLoopService : IDisposable
 		int xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
 		string server = serverName switch
 		{
-			//"pi51" => "10.210.52.83",
-			//"piz21" => "10.210.52.28",
-			"lora1" => "10.210.52.98",
-			"nano7" => "10.210.52.57",
-			"nano8" => "10.210.52.193",
-			"nano9" => "10.210.52.13",
-			"nano10" => "10.210.52.226",
+			//"pi51" => "10.13.172.83",
+			//"piz21" => "10.13.172.28",
+			"lora1" => "10.13.172.98",
+			"nano7" => "10.13.172.57",
+			"nano8" => "10.13.172.193",
+			"nano9" => "10.13.172.13",
+			"nano10" => "10.13.172.226",
 			_ => serverName + ".local"
 		};
 

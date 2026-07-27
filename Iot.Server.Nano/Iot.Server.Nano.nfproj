@@ -132,22 +132,22 @@
       <HintPath>..\packages\nanoFramework.System.Threading.1.1.52\lib\System.Threading.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.Duration">
-      <HintPath>..\packages\UnitsNet.nanoFramework.Duration.5.75.0\lib\UnitsNet.Duration.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.Duration.5.75.1\lib\UnitsNet.Duration.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.ElectricResistance">
-      <HintPath>..\packages\UnitsNet.nanoFramework.ElectricResistance.5.75.0\lib\UnitsNet.ElectricResistance.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.ElectricResistance.5.75.1\lib\UnitsNet.ElectricResistance.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.Length">
-      <HintPath>..\packages\UnitsNet.nanoFramework.Length.5.75.0\lib\UnitsNet.Length.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.Length.5.75.1\lib\UnitsNet.Length.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.Pressure">
-      <HintPath>..\packages\UnitsNet.nanoFramework.Pressure.5.75.0\lib\UnitsNet.Pressure.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.Pressure.5.75.1\lib\UnitsNet.Pressure.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.Ratio">
-      <HintPath>..\packages\UnitsNet.nanoFramework.Ratio.5.75.0\lib\UnitsNet.Ratio.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.Ratio.5.75.1\lib\UnitsNet.Ratio.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.RelativeHumidity">
-      <HintPath>..\packages\UnitsNet.nanoFramework.RelativeHumidity.5.75.0\lib\UnitsNet.RelativeHumidity.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.RelativeHumidity.5.75.1\lib\UnitsNet.RelativeHumidity.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
