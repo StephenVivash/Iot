@@ -72,7 +72,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 			new(3, 1, "piz21", "Raspberry Pi 2 Zero server", DeviceType.NetServer, ""),
 			new(4, 1, "piz22", "Raspberry Pi 2 Zero server", DeviceType.NetServer, ""),
 			new(5, 1, "koala", "Windows server", DeviceType.NetServer, ""),
-			new(6, 1, "mac", "Macintosh server", DeviceType.NetServer, ""),
+			new(6, 1, "goanna", "Macintosh server", DeviceType.NetServer, ""),
 			new(7, 1, "nano7", "ESP32-S3 Nano server 2291C4", DeviceType.NanoServer, ""),
 			new(8, 1, "nano8", "ESP32 Nano server FB2F18", DeviceType.NanoServer, ""),
 			new(9, 1, "nano9", "ESP32 Nano server 2E3658", DeviceType.NanoServer, ""),
