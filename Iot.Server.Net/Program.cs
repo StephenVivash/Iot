@@ -29,7 +29,8 @@ internal static class Program
 		}
 
 		int deviceId = startupMode.DeviceId ?? 5;
-		basePath = (deviceId > 0) && (deviceId < 5) ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
+		//basePath = (deviceId > 0) && (deviceId < 5) ? "/home/pi/iot" : @"C:\Src\Iot\Iot.Server.Net";
+		basePath = "./";
 
 		using ILoggerFactory loggerFactory = CreateLoggerFactory(args.Any(arg => arg.Equals("-console", StringComparison.OrdinalIgnoreCase)));
 		logger = loggerFactory.CreateLogger("Iot.Server.Net");
