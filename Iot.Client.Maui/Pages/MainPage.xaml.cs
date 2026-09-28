@@ -41,6 +41,11 @@ public partial class MainPage : ContentPage
 	private const string basePath = @"C:\Src\Iot\Iot.Server.Net";
 #elif ANDROID
 	private static readonly string basePath = FileSystem.AppDataDirectory;
+#elif MACCATALYST	
+	private static readonly string basePath = "/" + Path.Combine("Users", Environment.UserName, "Src", "Iot", "Iot.Server.Net");
+
+	//private static readonly string basePath = "/Users/stevev/Src/Iot/Iot.Server.Net";
+	//FileSystem.AppDataDirectory;
 #else
 	private static readonly string basePath = "";
 #endif

@@ -51,20 +51,21 @@ public sealed class IotClientLoopService : IDisposable
 	public void ConnectToServer(string serverName)
 	{
 		int xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
-		string[] servers = [
-			"pi51","172.28.46.83",
-			"piz21","172.28.46.28",
-			"lora1","172.28.46.98",
-			"nano7","172.28.46.57",
-			"nano8","172.28.46.193",
-			"nano9","172.28.46.13",
-			"nano10","172.28.46.226"];
-		string server = serverName;
-		for (int i = 0; i < servers.Length / 2; i = i + 2)
+		string server = serverName switch
 		{
-			if (servers[i] == serverName)
-				server = servers[i + 1];
-		}
+			//"pi51" => "10.96.6.83",
+			//"piz21" => "10.96.6.28",
+			"koala" => "10.96.6.100",
+			"wallaby" => "10.96.6.100",
+			"goanna" => "10.96.6.228",
+			"lora1" => "10.96.6.98",
+			"nano7" => "10.96.6.57",
+			"nano8" => "10.96.6.193",
+			"nano9" => "10.96.6.13",
+			"nano10" => "10.96.6.226",
+			_ => serverName + ".local"
+		};
+
 		PeerAddress peerAddress = new($"{server}", DefaultPort); // .local
 		_logger.LogWarning("Client selected server {ServerName}; resolved peer address {PeerAddress}.",
 			serverName, peerAddress);

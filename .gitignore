@@ -364,3 +364,5 @@ FodyWeavers.xsd
 /Iot.Server.Net/data/Iot.Data.db
 /Iot.Server.Net/data/Iot.Data.db-shm
 /Iot.Server.Net/data/Iot.Data.db-wal
+/Iot.Client.Maui/Resources/Fonts/SegoeIcons.ttf
+.DS_Store
