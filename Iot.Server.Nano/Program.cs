@@ -16,8 +16,8 @@ namespace Iot.Server.Nano
 
 		private const string Ssid = "OPPO A52";
 		private const string Password = "";
-		private static readonly string ClientPeer = "pi51.local:5050";
-		private static readonly int DeviceId = 7;
+		private static readonly string ClientPeer = "pi51.local:5050"; // "pi51.local:5050" "192.168.1.166:5050"
+		private static readonly int DeviceId = 10;
 
 		public static void Main()
 		{
