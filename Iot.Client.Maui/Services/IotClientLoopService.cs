@@ -58,7 +58,7 @@ public sealed class IotClientLoopService : IDisposable
 			"pi51" => "192.168.1.166",
 			"piz21" => "192.168.1.211",
 			"koala" => "192.168.1.197",
-			"wallaby" => "192.168.1.100",
+			"wallaby" => "192.168.1.167",
 			"goanna" => "192.168.1.92",
 #endif
 			"lora1" => "192.168.1.106",
