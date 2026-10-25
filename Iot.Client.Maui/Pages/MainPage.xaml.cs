@@ -34,6 +34,7 @@ public partial class MainPage : ContentPage
 	private bool _loadingPickers;
 	private bool _isDisposingRuntime;
 	private bool _isClientLoopRunning;
+	private double _requestedLogHeight = 200;
 
 	private readonly Ai _ai = new();
 
@@ -175,45 +176,50 @@ public partial class MainPage : ContentPage
 
 	protected override void OnSizeAllocated(double width, double height)
 	{
-		if ((width == -1) || (height == -1))
+		base.OnSizeAllocated(width, height);
+
+		if (width <= 0 || height <= 0)
 			return;
 #if ANDROID
-		if (width > height)
-		{
-			workspacePanel.WidthRequest = 200;
-			//horMenu.IsVisible = false;
-			//verMenu.IsVisible = true;
-			//diagramView.WidthRequest = 200;
-			//diagramView.ButtonPadding(new Thickness(0, 5));
-		}
-		else
-		{
-			workspacePanel.HeightRequest = height;
-			//horMenu.IsVisible = true;
-			//verMenu.IsVisible = false;
-			//diagramView.WidthRequest = width;
-			//diagramView.ButtonPadding(new Thickness(5));
-		}
-#else
-		//horMenu.IsVisible = false;
-		//verMenu.IsVisible = true;
+		// As in Yijing, the workspace fills portrait and shares landscape with the detail panels.
+		bool isPortrait = width <= height;
+		workspacePanel.WidthRequest = isPortrait ? width : 200;
+		workspacePanel.HeightRequest = -1;
+		webPanel.IsVisible = !isPortrait;
+		logPanel.IsVisible = !isPortrait;
+
+		// Let the dock allocate the available height, including system-bar insets.
+		// Cap the log so it cannot consume most of a short landscape viewport.
+		UpdateLogHeight(height);
 #endif
-		base.OnSizeAllocated(width, height);
+	}
+
+	private void UpdateLogHeight(double pageHeight)
+	{
+		double logHeight = _requestedLogHeight;
+#if ANDROID
+		if (pageHeight > 0)
+			logHeight = Math.Min(logHeight, pageHeight * 0.4);
+#endif
+		logPanel.HeightRequest = logHeight;
 	}
 
 	private void OnWebSourceFocused(object? sender, FocusEventArgs e)
 	{
-		logPanel.HeightRequest = 100;
+		_requestedLogHeight = 100;
+		UpdateLogHeight(Height);
 	}
 
 	private void OnConsoleLogFocused(object? sender, FocusEventArgs e)
 	{
-		logPanel.HeightRequest = 200;
+		_requestedLogHeight = 200;
+		UpdateLogHeight(Height);
 	}
 
 	private void OnConsoleLogTapped(object? sender, TappedEventArgs e)
 	{
-		logPanel.HeightRequest = 200;
+		_requestedLogHeight = 200;
+		UpdateLogHeight(Height);
 	}
 
 	private void LoadPickers()
