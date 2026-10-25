@@ -227,9 +227,9 @@ public partial class MainPage : ContentPage
 		_loadingPickers = true;
 
 		using var dbContext = CreateDbContext();
-#if ANDROID
-		dbContext.InitialiseDB();
-#endif
+		if (dbContext.Points.Count() == 0)
+			dbContext.InitialiseDB();
+
 		List<ServerItem> servers = dbContext.Devices
 			.AsNoTracking()
 			.Where(device => device.TypeId != (int)ModelDeviceType.Client)
