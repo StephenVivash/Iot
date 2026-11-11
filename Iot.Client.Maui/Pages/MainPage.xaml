@@ -39,6 +39,7 @@
             <CollectionView
                 x:Name="colWorkspace"
                 Grid.Row="2"
+                ItemSizingStrategy="MeasureAllItems"
                 SelectionMode="None">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
@@ -49,45 +50,57 @@
                             <Border.StrokeShape>
                                 <RoundRectangle CornerRadius="6" />
                             </Border.StrokeShape>
-                            <Grid ColumnDefinitions="*,120,24" ColumnSpacing="6">
+                            <Grid
+                                RowDefinitions="{OnPlatform Android='Auto,Auto', Default='Auto'}"
+                                ColumnDefinitions="{OnPlatform Android='*,Auto', Default='*,120,24'}"
+                                ColumnSpacing="6"
+                                RowSpacing="4">
                                 <Label
                                     Grid.Column="0"
+                                    Grid.ColumnSpan="{OnPlatform Android=2, Default=1}"
                                     Text="{Binding Name}"
                                     VerticalTextAlignment="Center"
                                     HorizontalTextAlignment="Start"
-                                    LineBreakMode="TailTruncation" />
+                                    LineBreakMode="{OnPlatform Android=WordWrap, Default=TailTruncation}" />
                                 <Label
-                                    Grid.Column="1"
+                                    Grid.Row="{OnPlatform Android=1, Default=0}"
+                                    Grid.Column="{OnPlatform Android=0, Default=1}"
+                                    Grid.ColumnSpan="{OnPlatform Android=2, Default=1}"
                                     Text="{Binding StatusText}"
                                     VerticalTextAlignment="Center"
                                     HorizontalTextAlignment="Start"
                                     IsVisible="{Binding IsStatusTextVisible}"
                                     LineBreakMode="TailTruncation" />
                                 <Picker
-                                    Grid.Column="1"
+                                    Grid.Row="{OnPlatform Android=1, Default=0}"
+                                    Grid.Column="{OnPlatform Android=0, Default=1}"
                                     Grid.ColumnSpan="2"
-                                    WidthRequest="144"
-                                    HorizontalOptions="End"
+                                    WidthRequest="{OnPlatform Android=-1, Default=144}"
+                                    HorizontalOptions="{OnPlatform Android=Fill, Default=End}"
                                     ItemsSource="{Binding DigitalStates}"
                                     SelectedItem="{Binding SelectedDigitalState, Mode=TwoWay}"
                                     IsVisible="{Binding IsDigitalOutput}"
                                     SelectedIndexChanged="OnDigitalStatePickerSelectedIndexChanged" />
-                                <HorizontalStackLayout
-                                    Grid.Column="1"
+                                <Grid
+                                    Grid.Row="{OnPlatform Android=1, Default=0}"
+                                    Grid.Column="{OnPlatform Android=0, Default=1}"
                                     Grid.ColumnSpan="2"
-                                    Spacing="6"
-                                    HorizontalOptions="End"
+                                    ColumnDefinitions="*,Auto"
+                                    ColumnSpacing="6"
+                                    WidthRequest="{OnPlatform Android=-1, Default=144}"
+                                    HorizontalOptions="{OnPlatform Android=Fill, Default=End}"
                                     IsVisible="{Binding IsOtherOutput}">
                                     <Entry
-                                        WidthRequest="114"
+                                        MinimumWidthRequest="0"
                                         Text="{Binding PendingStatus, Mode=TwoWay}" />
                                     <controls:ButtonEx
+                                        Grid.Column="1"
                                         FontSize="14"
                                         Padding="0"
                                         Border="False"
                                         Icon="{x:Static controls:FluentIcons.Send}"
                                         Clicked="OnSetPointClicked" />
-                                </HorizontalStackLayout>
+                                </Grid>
                             </Grid>
                         </Border>
                     </DataTemplate>
@@ -99,10 +112,10 @@
 	<Border
         x:Name="logPanel"
 		toolkit:DockLayout.DockPosition="Bottom"
+        HeightRequest="200"
         Padding="0">
 		<controls:LogView
 			x:Name="consoleLog"
-			HeightRequest="200"
 			Focused="OnConsoleLogFocused"
 			StartClicked="OnConsoleStartClicked"
 			StopClicked="OnConsoleStopClicked">
